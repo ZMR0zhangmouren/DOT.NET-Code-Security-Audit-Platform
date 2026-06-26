@@ -1,0 +1,41 @@
+# 依赖
+node_modules/
+dist/
+build/
+coverage/
+
+# 锁文件
+pnpm-lock.yaml
+
+# Claude / 配置
+.claude/
+*.md
+
+# 子仓库
+dotnet-security-audit-skill/
+
+# 运行时产物
+output/
+storage/
+*.sqlite
+*.sqlite-journal
+
+# 元数据 / 配置(JSON / YAML / lockfile —— Prettier 不格式化)
+package.json
+package-lock.json
+**/package.json
+**/tsconfig*.json
+**/tsconfig.json
+pnpm-workspace.yaml
+.gitignore
+.prettierignore
+.eslintignore
+.eslintrc*
+components.json
+nest-cli.json
+
+# 工具配置
+vitest.config.ts
+vite.config.ts
+postcss.config.js
+tailwind.config.js

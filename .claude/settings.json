@@ -6,8 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "file_path=$(node -e \"const d=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log(d.tool_input?.file_path||d.tool_response?.filePath||'')\"); [[ \"$file_path\" == *.md ]] && markdownlint-cli2 \"$file_path\" 2>&1 || true",
-            "statusMessage": "linting markdown…",
+            "command": "file_path=$(node -e \"const d=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log(d.tool_input?.file_path||d.tool_response?.filePath||'')\"); case \"$file_path\" in *.md) markdownlint-cli2 \"$file_path\" 2>&1 ;; *.ts|*.tsx) npx prettier --write \"$file_path\" >/dev/null 2>&1 ;; esac; true",
+            "statusMessage": "linting/formatting…",
             "timeout": 30
           }
         ]

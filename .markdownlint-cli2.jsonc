@@ -1,15 +1,17 @@
 {
   "config": {
     "default": true,
-    "MD013": false,           // 行长不限制(中文/URL/路径天然超过 80)
-    "MD033": false,           // 允许内联 HTML(本项目偶尔用 <br>)
-    "MD041": false,           // 文件首行不必是顶级标题(本项目 CLAUDE.md 有前言)
-    "MD060": false            // 允许紧凑型表格(节省篇幅)
+    "MD013": false, // 行长不限制(中文/URL/路径天然超过 80)
+    "MD033": false, // 允许内联 HTML(本项目偶尔用 <br>)
+    "MD041": false, // 文件首行不必是顶级标题(本项目 CLAUDE.md 有前言)
+    "MD060": false, // 允许紧凑型表格(节省篇幅)
   },
   "globs": ["**/*.md"],
   "ignores": [
     "node_modules/**",
+    "apps/**/node_modules/**",
+    "packages/**/node_modules/**",
     ".git/**",
-    "dotnet-security-audit-skill/**"   // 子仓库由其自身流程管
-  ]
+    "dotnet-security-audit-skill/**",
+  ],
 }
