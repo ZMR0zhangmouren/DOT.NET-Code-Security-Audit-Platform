@@ -1,56 +1,54 @@
-@echo off
+﻿@echo off
 chcp 65001 >nul
 setlocal
 
 REM ============================================================
-REM .NET 代码安全审计平台 —— 关闭脚本(双击执行)
-REM ============================================================
-REM 通过端口定位 PID,精准关闭 API(3030)与 Web(5180)。
-REM 不影响其它项目。
+REM  Audit Platform - Stop Script (double-click)
+REM  Kills processes on ports 3030 (API) and 5180 (Web)
+REM  Uses port-based PID lookup, so other projects are unaffected
 REM ============================================================
 
 echo ============================================================
-echo  关闭 NestJS API  (端口 3030)
-echo  关闭 Vite Web   (端口 5180)
+echo   Stopping NestJS API  (port 3030)
+echo   Stopping Vite Web   (port 5180)
 echo ============================================================
 
 set "KILLED=0"
 
-REM 关闭端口 3030 上的进程(API)
+REM Kill API on port 3030
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":3030" ^| findstr "LISTENING"') do (
     if not "%%P"=="0" (
-        echo [INFO] 关闭 API PID=%%P ...
+        echo [INFO] Killing API PID=%%P ...
         taskkill /F /PID %%P >nul 2>&1
         if not errorlevel 1 set /a "KILLED+=1"
     )
 )
 
-REM 关闭端口 5180 上的进程(Web)
+REM Kill Web on port 5180
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":5180" ^| findstr "LISTENING"') do (
     if not "%%P"=="0" (
-        echo [INFO] 关闭 Web PID=%%P ...
+        echo [INFO] Killing Web PID=%%P ...
         taskkill /F /PID %%P >nul 2>&1
         if not errorlevel 1 set /a "KILLED+=1"
     )
 )
 
-REM 兜底:关掉 AuditPlatform-* 窗口标题的所有 node 进程
-REM (防止 start.bat 启动的两个 cmd 窗口仍残留,即使端口检测失败)
+REM Fallback: clean up leftover cmd windows with our title (in case port detection misses)
 tasklist /FI "WINDOWTITLE eq AuditPlatform-*" 2>nul | findstr /R "AuditPlatform" >nul 2>&1
 if not errorlevel 1 (
-    echo [INFO] 清理残留的启动窗口 ...
-    for /f "tokens=2" %%W in ('tasklist /FI "WINDOWTITLE eq AuditPlatform-*" /FO LIST ^| findstr "cmd.exe"') do (
+    echo [INFO] Cleaning leftover launcher windows ...
+    for /f "tokens=2" %%W in ('tasklist /FI "WINDOWTITLE eq AuditPlatform-*" /FO LIST 2^>nul ^| findstr "cmd.exe"') do (
         taskkill /F /PID %%W >nul 2>&1
     )
 )
 
 if "%KILLED%"=="0" (
-    echo [INFO] 没找到运行中的服务(端口 3030 / 5180 都空)
+    echo [INFO] No running services found (ports 3030 / 5180 both empty)
 ) else (
-    echo [OK] 共关闭 %KILLED% 个进程
+    echo [OK] Killed %KILLED% process(es)
 )
 
 echo.
-echo 按任意键退出
+echo Press any key to exit.
 pause >nul
 endlocal
