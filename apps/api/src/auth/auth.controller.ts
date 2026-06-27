@@ -1,8 +1,8 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
 
-import type { AuthService } from './auth.service.js';
-import { type AuthedUser, type JwtPayload } from './auth.service.js';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { AuthService, type AuthedUser, type JwtPayload } from './auth.service.js'; // AuthService 需保留运行时引用(NestJS DI)
 
 interface LoginDto {
   usernameOrEmail: string;

@@ -1,5 +1,6 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
-import type { JwtService } from '@nestjs/jwt';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { JwtService } from '@nestjs/jwt'; // 运行时需保留(NestJS DI 反射元数据)
 import * as argon2 from 'argon2';
 import { eq } from 'drizzle-orm';
 

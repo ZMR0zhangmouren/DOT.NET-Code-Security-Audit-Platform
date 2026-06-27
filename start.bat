@@ -52,15 +52,15 @@ echo 日志: %LOGDIR%\api.log  %LOGDIR%\web.log
 echo 关闭: 双击 stop.bat
 echo ============================================================
 
-REM API 后台启动,日志写到 logs/api.log
-start "AuditPlatform-API" /B cmd /c "cd /d ""%ROOT%"" && pnpm --filter @platform/api start > ""%LOGDIR%\api.log"" 2>&1"
+REM API dev 模式(nest start --watch 自动编译 + 监听变更)
+start "AuditPlatform-API" /B cmd /c "cd /d ""%ROOT%"" && pnpm --filter @platform/api dev > ""%LOGDIR%\api.log"" 2>&1"
 
-REM Web dev 后台启动,日志写到 logs/web.log
+REM Web dev 模式(Vite HMR)
 start "AuditPlatform-Web" /B cmd /c "cd /d ""%ROOT%"" && pnpm --filter @platform/web dev > ""%LOGDIR%\web.log"" 2>&1"
 
 REM 等服务起来,自动打开浏览器
-echo [INFO] 等待服务启动(约 8 秒)...
-timeout /t 8 /nobreak >nul
+echo [INFO] 等待服务启动(约 12 秒;NestJS 首次编译耗时)...
+timeout /t 12 /nobreak >nul
 
 echo.
 echo [OK] 启动完成

@@ -16,6 +16,10 @@ export default [
       'dotnet-security-audit-skill/**',
       'output/**',
       'storage/**',
+      'logs/**',
+      '**/dist/**',
+      '**/tsconfig.tsbuildinfo',
+      '**/*.js.map',
     ],
   },
 

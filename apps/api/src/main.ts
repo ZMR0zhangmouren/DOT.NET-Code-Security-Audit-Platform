@@ -23,11 +23,15 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
+  // 全局路由前缀 /api,前端 vite proxy 与 README 一致
+  // 例:/health → /api/health、/auth/login → /api/auth/login
+  app.setGlobalPrefix('api');
+
   // 默认监听 127.0.0.1:3030(§6.5 部署锁定"仅监听 127.0.0.1,不暴露公网")
   const port = Number(process.env['PORT'] ?? 3030);
   const host = process.env['HOST'] ?? '127.0.0.1';
   await app.listen(port, host);
-  logger.log(`API listening on http://${host}:${port}`);
+  logger.log(`API listening on http://${host}:${port} (prefix=/api)`);
 }
 
 void bootstrap();
