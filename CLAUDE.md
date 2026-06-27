@@ -88,6 +88,22 @@ dev 期联调:`apps/web` Vite dev server 把 `/api` 与 `/socket.io` 代理到 `
 
 用法:在资源管理器里**双击**对应 `.bat` 即可,无需打开终端。
 
+## 默认账号(种子数据)
+
+启动 API 后,执行一次种子:
+
+```bash
+pnpm --filter @platform/api seed
+```
+
+会创建默认 admin 账号:
+
+- username: `admin`
+- password: `admin123`
+- role: admin
+
+§6.2 要求首次登录后改密码(留 Phase 2 接)。POST /api/auth/login → 返回 JWT(15min)→ 前端存 localStorage。
+
 - ✅ `pnpm install`(836 包)
 - ✅ `pnpm -r typecheck`(shared / api / web 全绿)
 - ✅ `pnpm -r test`(11 测试通过:shared 6 + api 3 + web 2)
