@@ -12,11 +12,11 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: 5180,
     proxy: {
-      // 开发期把 /api 与 /socket.io 转到 nest 后端
-      '/api': { target: 'http://127.0.0.1:3000', changeOrigin: true },
-      '/socket.io': { target: 'http://127.0.0.1:3000', ws: true, changeOrigin: true },
+      // 开发期把 /api 与 /socket.io 转到 nest 后端(端口见 apps/api/.env.example)
+      '/api': { target: 'http://127.0.0.1:3030', changeOrigin: true },
+      '/socket.io': { target: 'http://127.0.0.1:3030', ws: true, changeOrigin: true },
     },
   },
 });

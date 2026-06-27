@@ -71,7 +71,12 @@ pnpm --filter @platform/api dev          # nest start --watch
 pnpm --filter @platform/web dev          # vite
 ```
 
-dev 期联调:`apps/web` Vite dev server 把 `/api` 与 `/socket.io` 代理到 `apps/api` 的 127.0.0.1:3000(已写进 `apps/web/vite.config.ts`)。
+dev 期联调:`apps/web` Vite dev server 把 `/api` 与 `/socket.io` 代理到 `apps/api` 的 127.0.0.1:3030(已写进 `apps/web/vite.config.ts`)。
+
+**端口约定**(避免与其它项目冲突):
+- API:`3030`(默认,在 `.env` 用 `PORT` 覆盖)
+- Web dev:`5180`(默认)
+- 仅监听 `127.0.0.1`,不暴露公网(§6.5)
 
 ## 已落地验证
 

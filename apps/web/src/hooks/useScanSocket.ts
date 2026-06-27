@@ -37,7 +37,7 @@ export function useScanSocket(scanRunId: string | null): {
   useEffect(() => {
     if (!scanRunId) return;
 
-    const url = `${window.location.protocol}//${window.location.hostname}:3000/scans`;
+    const url = `${window.location.protocol}//${window.location.hostname}:3030/scans`;
     setStatus('connecting');
 
     const sock = io(url, {
