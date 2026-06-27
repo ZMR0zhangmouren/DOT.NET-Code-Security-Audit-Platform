@@ -103,6 +103,25 @@ export default function ConfigPage(): React.ReactElement {
     }
   }
 
+  const [testing, setTesting] = useState<string | null>(null);
+  async function testConnection(k: AiKey): Promise<void> {
+    setTesting(k.id);
+    setErr(null);
+    try {
+      const result = await api.post<{ ok: boolean; message: string; latencyMs: number }>(
+        `/settings/ai-keys/${k.id}/test`,
+      );
+      alert(
+        result.ok ? `OK (${result.latencyMs}ms)\n${result.message}` : `FAIL\n${result.message}`,
+      );
+      void refresh();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setTesting(null);
+    }
+  }
+
   return (
     <main className="container py-8">
       <header className="mb-6 flex items-center justify-between">
@@ -277,6 +296,17 @@ export default function ConfigPage(): React.ReactElement {
                     )}
                   </td>
                   <td className="p-2 space-x-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={testing === k.id}
+                      onClick={() => {
+                        void testConnection(k);
+                      }}
+                      data-testid="key-test"
+                    >
+                      {testing === k.id ? 'Testing...' : 'Test'}
+                    </Button>
                     <Button
                       size="sm"
                       variant={k.isActive ? 'outline' : 'default'}
