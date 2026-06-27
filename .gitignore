@@ -41,3 +41,6 @@ CLAUDE.local.md
 # 扫描产物(运行时生成)
 output/
 storage/
+
+# 启动脚本日志(start.bat 写到 logs/*.log)
+logs/

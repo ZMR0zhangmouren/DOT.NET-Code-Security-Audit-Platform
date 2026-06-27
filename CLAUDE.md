@@ -78,7 +78,15 @@ dev 期联调:`apps/web` Vite dev server 把 `/api` 与 `/socket.io` 代理到 `
 - Web dev:`5180`(默认)
 - 仅监听 `127.0.0.1`,不暴露公网(§6.5)
 
-## 已落地验证
+## Windows 快捷脚本(双击执行)
+
+| 脚本 | 用途 |
+|------|------|
+| `start.bat` | 后台启动 API + Web,日志写到 `logs/api.log` / `logs/web.log`,自动开浏览器 |
+| `stop.bat` | 按端口定位 PID,精准关闭 3030 与 5180 上的进程(不影响其它项目) |
+| `status.bat` | 显示两个端口的 RUNNING / STOPPED 状态 |
+
+用法:在资源管理器里**双击**对应 `.bat` 即可,无需打开终端。
 
 - ✅ `pnpm install`(836 包)
 - ✅ `pnpm -r typecheck`(shared / api / web 全绿)
