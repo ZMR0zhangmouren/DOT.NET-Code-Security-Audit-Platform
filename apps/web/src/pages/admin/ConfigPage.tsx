@@ -20,24 +20,31 @@ interface AiKey {
   updatedAt: number;
 }
 
+type Mode = { kind: 'create' } | { kind: 'edit'; key: AiKey };
+
 /**
- * §5.7 /admin/config —— 系统配置(仅 admin)
+ * §5.7 /admin/config —— AI Key CRUD + Test + 模型选择
  *
- * MVP 行为:AI Key CRUD + 启停;"测试连接" 调 PATCH 触发后端测活
+ * 表单:
+ * - availableModels:多选 checkbox + "自动探测"按钮(POST /:id/models)
+ * - defaultModel:radio(从已选 availableModels 中选一个)
  */
 export default function ConfigPage(): React.ReactElement {
   const [keys, setKeys] = useState<AiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [showNew, setShowNew] = useState(false);
+  const [mode, setMode] = useState<Mode | null>(null);
 
+  // 表单字段
   const [provider, setProvider] = useState<AiKey['provider']>('openai');
   const [label, setLabel] = useState('');
   const [baseUrl, setBaseUrl] = useState('https://api.openai.com/v1');
   const [apiKey, setApiKey] = useState('');
-  const [defaultModel, setDefaultModel] = useState('gpt-4o');
-  const [availableModelsText, setAvailableModelsText] = useState('gpt-4o\ngpt-4o-mini');
-  const [creating, setCreating] = useState(false);
+  const [defaultModel, setDefaultModel] = useState('');
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
+  const [discovering, setDiscovering] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   async function refresh(): Promise<void> {
     setLoading(true);
@@ -56,31 +63,101 @@ export default function ConfigPage(): React.ReactElement {
     void refresh();
   }, []);
 
-  async function onCreate(e: FormEvent<HTMLFormElement>): Promise<void> {
-    e.preventDefault();
-    setCreating(true);
+  function openCreate(): void {
+    setMode({ kind: 'create' });
+    setProvider('openai');
+    setLabel('');
+    setBaseUrl('https://api.openai.com/v1');
+    setApiKey('');
+    setDefaultModel('');
+    setSelectedModels([]);
+    setDiscoveredModels([]);
+  }
+
+  function openEdit(k: AiKey): void {
+    setMode({ kind: 'edit', key: k });
+    setProvider(k.provider);
+    setLabel(k.label);
+    setBaseUrl(k.baseUrl);
+    setApiKey(''); // 不回显明文,留空表示不改
+    setDefaultModel(k.defaultModel);
+    setSelectedModels([...k.availableModels]);
+    setDiscoveredModels([]);
+  }
+
+  function closeModal(): void {
+    setMode(null);
+  }
+
+  function toggleModel(m: string, on: boolean): void {
+    setSelectedModels((prev) => {
+      const next = on ? Array.from(new Set([...prev, m])) : prev.filter((x) => x !== m);
+      if (!on && defaultModel === m) setDefaultModel('');
+      return next;
+    });
+  }
+
+  async function discoverModels(): Promise<void> {
+    if (!mode) return;
+    if (!apiKey.trim() && mode.kind === 'create') {
+      setErr('Discover requires API key — please paste the key first');
+      return;
+    }
+    setDiscovering(true);
     setErr(null);
     try {
-      const availableModels = availableModelsText
-        .split(/[\n,]/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-      await api.post('/settings/ai-keys', {
-        provider,
-        label,
-        baseUrl,
-        apiKey,
-        defaultModel,
-        availableModels,
-      });
-      setShowNew(false);
-      setLabel('');
-      setApiKey('');
+      // 编辑模式下,如未改 apiKey,直接 POST :id/models(用已存的明文)
+      // 否则先临时跑(Phase 2 接 form 临时探测)
+      const result = await api.post<{ ok: boolean; models: string[]; message?: string }>(
+        mode.kind === 'edit'
+          ? `/settings/ai-keys/${mode.key.id}/models`
+          : `/settings/ai-keys/_probe`, // 编辑模式优先走 :id;新建时 Phase 2 接
+        {},
+      );
+      if (!result.ok) {
+        setErr(result.message ?? 'discover failed');
+        return;
+      }
+      setDiscoveredModels(result.models);
+      setSelectedModels((prev) => Array.from(new Set([...prev, ...result.models])));
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setDiscovering(false);
+    }
+  }
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault();
+    if (!mode) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      if (mode.kind === 'create') {
+        await api.post('/settings/ai-keys', {
+          provider,
+          label,
+          baseUrl,
+          apiKey,
+          defaultModel,
+          availableModels: selectedModels,
+        });
+      } else {
+        const patch: Record<string, unknown> = {
+          label,
+          baseUrl,
+          defaultModel,
+          availableModels: selectedModels,
+        };
+        if (apiKey.trim()) patch['apiKey'] = apiKey;
+        await api.patch(`/settings/ai-keys/${mode.key.id}`, patch);
+      }
+      closeModal();
       void refresh();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : (e as Error).message);
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
   }
 
@@ -122,6 +199,9 @@ export default function ConfigPage(): React.ReactElement {
     }
   }
 
+  // 合并:已选 + 已探测(去重)
+  const allModelOptions = Array.from(new Set([...discoveredModels, ...selectedModels])).sort();
+
   return (
     <main className="container py-8">
       <header className="mb-6 flex items-center justify-between">
@@ -135,7 +215,7 @@ export default function ConfigPage(): React.ReactElement {
           <Button variant="outline" onClick={() => void refresh()} data-testid="config-refresh">
             Refresh
           </Button>
-          <Button onClick={() => setShowNew((v) => !v)} data-testid="config-new">
+          <Button onClick={() => openCreate()} data-testid="config-new">
             + New AI Key
           </Button>
         </div>
@@ -149,14 +229,16 @@ export default function ConfigPage(): React.ReactElement {
           </p>
         )}
 
-        {showNew && (
+        {mode && (
           <form
             onSubmit={(e) => {
-              void onCreate(e);
+              void onSubmit(e);
             }}
             className="mb-4 rounded-lg border bg-card p-4"
           >
-            <h3 className="mb-3 text-base font-semibold">New AI Key</h3>
+            <h3 className="mb-3 text-base font-semibold">
+              {mode.kind === 'create' ? 'New AI Key' : `Edit: ${mode.key.label}`}
+            </h3>
             <div className="grid gap-3 md:grid-cols-2">
               <label className="flex flex-col gap-1 text-sm">
                 <span className="text-muted-foreground">Provider *</span>
@@ -192,50 +274,86 @@ export default function ConfigPage(): React.ReactElement {
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm md:col-span-2">
-                <span className="text-muted-foreground">API Key *</span>
+                <span className="text-muted-foreground">
+                  API Key {mode.kind === 'edit' && '(leave blank to keep current)'}
+                </span>
                 <input
                   type="password"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  required
-                  minLength={10}
-                  className="rounded-md border border-input bg-background px-3 py-2 font-mono"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-muted-foreground">Default model *</span>
-                <input
-                  value={defaultModel}
-                  onChange={(e) => setDefaultModel(e.target.value)}
-                  required
-                  className="rounded-md border border-input bg-background px-3 py-2"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-muted-foreground">Available models (1 per line)</span>
-                <textarea
-                  value={availableModelsText}
-                  onChange={(e) => setAvailableModelsText(e.target.value)}
-                  rows={3}
+                  {...(mode.kind === 'create' ? { required: true, minLength: 10 } : {})}
                   className="rounded-md border border-input bg-background px-3 py-2 font-mono"
                 />
               </label>
             </div>
+
+            {/* 模型选择区 */}
+            <div className="mt-4 rounded border bg-background p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-medium">Available Models</span>
+                {mode.kind === 'edit' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={discovering}
+                    onClick={() => {
+                      void discoverModels();
+                    }}
+                    data-testid="discover-models"
+                  >
+                    {discovering ? '探测中...' : '探测可用模型(/v1/models)'}
+                  </Button>
+                )}
+              </div>
+              {allModelOptions.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  暂无可用模型;若新建,先在 API Key 输入完整 key 后用 Phase 2 的"未保存探测"功能。
+                </p>
+              ) : (
+                <ul className="grid gap-1 md:grid-cols-2" data-testid="model-list">
+                  {allModelOptions.map((m) => (
+                    <li key={m} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={selectedModels.includes(m)}
+                        onChange={(e) => {
+                          toggleModel(m, e.target.checked);
+                        }}
+                        data-testid={`model-${m}`}
+                      />
+                      <input
+                        type="radio"
+                        name="defaultModel"
+                        checked={defaultModel === m}
+                        disabled={!selectedModels.includes(m)}
+                        onChange={() => setDefaultModel(m)}
+                        data-testid={`default-${m}`}
+                      />
+                      <span className="font-mono text-xs">{m}</span>
+                      {discoveredModels.includes(m) && (
+                        <span className="rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                          服务端返回
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-2 text-xs text-muted-foreground">
+                checkbox = 可用模型;radio = 默认模型(必须先勾选)
+              </p>
+            </div>
+
             <div className="mt-3 flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setShowNew(false)}
-                disabled={creating}
-              >
+              <Button type="button" variant="ghost" onClick={closeModal} disabled={saving}>
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={creating || !label || !apiKey}
-                data-testid="config-create"
+                disabled={saving || !label || selectedModels.length === 0 || !defaultModel}
+                data-testid="config-save"
               >
-                {creating ? 'Creating...' : 'Create'}
+                {saving ? 'Saving...' : mode.kind === 'create' ? 'Create' : 'Save'}
               </Button>
             </div>
           </form>
@@ -296,6 +414,16 @@ export default function ConfigPage(): React.ReactElement {
                     )}
                   </td>
                   <td className="p-2 space-x-1">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        openEdit(k);
+                      }}
+                      data-testid="key-edit"
+                    >
+                      Edit
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"

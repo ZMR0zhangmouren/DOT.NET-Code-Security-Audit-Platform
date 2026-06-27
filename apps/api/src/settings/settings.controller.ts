@@ -67,8 +67,7 @@ export class SettingsController {
   }
 
   /**
-   * 测试连接 —— 真正调 /v1/models 验证 key + base_url 正确性
-   * 返回 {ok, message, latencyMs}
+   * 测试连接 —— 调 /v1/models 验证 key + base_url
    */
   @Post(':id/test')
   async testConnection(
@@ -90,6 +89,25 @@ export class SettingsController {
       const msg = (e as Error).message;
       this.settings.recordTestResult(id, 'failed', msg);
       return { ok: false, message: msg, latencyMs: Date.now() - start };
+    }
+  }
+
+  /**
+   * 探测可用模型 —— 调 /v1/models 返回模型 id 列表(不保存,仅临时返回)
+   * 前端用这个自动填充表单的 availableModels 选择项
+   */
+  @Post(':id/models')
+  async listModels(
+    @Param('id') id: string,
+  ): Promise<{ ok: boolean; models: string[]; message?: string }> {
+    try {
+      const aiKey = this.settings.getAiKey(id);
+      const plaintext = this.settings.getAiKeyPlaintext(id);
+      const { listModelsVia } = await import('./openai-test.client.js');
+      const models = await listModelsVia(plaintext, aiKey.baseUrl);
+      return { ok: true, models };
+    } catch (e) {
+      return { ok: false, models: [], message: (e as Error).message };
     }
   }
 }

@@ -45,4 +45,13 @@ export class UsersController {
   update(@Param('id') id: string, @Body() body: UpdateDto): UserPublic {
     return this.users.update(id, body);
   }
+
+  @Patch(':id/password')
+  async resetPassword(
+    @Param('id') id: string,
+    @Body() body: { password: string },
+  ): Promise<{ ok: true }> {
+    await this.users.updatePassword(id, body.password);
+    return { ok: true };
+  }
 }

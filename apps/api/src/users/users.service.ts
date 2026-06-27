@@ -114,6 +114,17 @@ export class UsersService {
     return this.get(existing.id);
   }
 
+  async updatePassword(id: string, newPassword: string): Promise<void> {
+    const passwordHash = await argon2.hash(newPassword, {
+      type: argon2.argon2id,
+      memoryCost: 19456,
+      timeCost: 2,
+      parallelism: 1,
+    });
+    const result = this.db.update(users).set({ passwordHash }).where(eq(users.id, id)).run();
+    if (result.changes === 0) throw new NotFoundException(`user ${id} not found`);
+  }
+
   private toPublic(r: UserRow): UserPublic {
     return {
       id: r.id,

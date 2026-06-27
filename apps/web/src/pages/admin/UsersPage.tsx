@@ -14,25 +14,26 @@ interface User {
   lastLoginAt: number | null;
 }
 
+type Mode = { kind: 'create' } | { kind: 'edit'; user: User };
+
 /**
  * §5.7 /admin/users —— 用户管理(仅 admin)
  *
- * MVP 行为:列用户 + 新建用户 + 行内启停/改 role
- * Phase 2:加搜索、分页、改密码、角色权限矩阵
+ * MVP 行为:列用户 + 新建/编辑 + 行内启停/改 role + 重置密码
  */
 export default function UsersPage(): React.ReactElement {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [showNew, setShowNew] = useState(false);
+  const [mode, setMode] = useState<Mode | null>(null);
 
-  // 新建表单
+  // 新建/编辑 共用表单字段
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState<User['role']>('developer');
-  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   async function refresh(): Promise<void> {
     setLoading(true);
@@ -51,28 +52,60 @@ export default function UsersPage(): React.ReactElement {
     void refresh();
   }, []);
 
-  async function onCreate(e: FormEvent<HTMLFormElement>): Promise<void> {
+  function openCreate(): void {
+    setMode({ kind: 'create' });
+    setUsername('');
+    setEmail('');
+    setPassword('');
+    setDisplayName('');
+    setRole('developer');
+  }
+
+  function openEdit(u: User): void {
+    setMode({ kind: 'edit', user: u });
+    setUsername(u.username);
+    setEmail(u.email);
+    setPassword(''); // 不回显
+    setDisplayName(u.displayName ?? '');
+    setRole(u.role);
+  }
+
+  function close(): void {
+    setMode(null);
+  }
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
-    setCreating(true);
+    if (!mode) return;
+    setSaving(true);
     setErr(null);
     try {
-      await api.post('/users', {
-        username,
-        email,
-        password,
-        displayName: displayName.trim() || undefined,
-        role,
-      });
-      setShowNew(false);
-      setUsername('');
-      setEmail('');
-      setPassword('');
-      setDisplayName('');
+      if (mode.kind === 'create') {
+        await api.post('/users', {
+          username,
+          email,
+          password,
+          displayName: displayName.trim() || undefined,
+          role,
+        });
+      } else {
+        // 编辑:email / displayName / role / password(选填)
+        const patch: Record<string, unknown> = {
+          email,
+          displayName: displayName.trim() || null,
+          role,
+        };
+        await api.patch(`/users/${mode.user.id}`, patch);
+        if (password) {
+          await api.patch(`/users/${mode.user.id}/password`, { password });
+        }
+      }
+      close();
       void refresh();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : (e as Error).message);
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
   }
 
@@ -108,7 +141,7 @@ export default function UsersPage(): React.ReactElement {
           <Button variant="outline" onClick={() => void refresh()} data-testid="users-refresh">
             Refresh
           </Button>
-          <Button onClick={() => setShowNew((v) => !v)} data-testid="users-new">
+          <Button onClick={() => openCreate()} data-testid="users-new">
             + New User
           </Button>
         </div>
@@ -120,14 +153,16 @@ export default function UsersPage(): React.ReactElement {
         </p>
       )}
 
-      {showNew && (
+      {mode && (
         <form
           onSubmit={(e) => {
-            void onCreate(e);
+            void onSubmit(e);
           }}
           className="mb-4 rounded-lg border bg-card p-4"
         >
-          <h2 className="mb-3 text-lg font-semibold">New User</h2>
+          <h2 className="mb-3 text-lg font-semibold">
+            {mode.kind === 'create' ? 'New User' : `Edit: ${mode.user.username}`}
+          </h2>
           <div className="grid gap-3 md:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-muted-foreground">Username *</span>
@@ -137,7 +172,8 @@ export default function UsersPage(): React.ReactElement {
                 required
                 minLength={3}
                 maxLength={64}
-                className="rounded-md border border-input bg-background px-3 py-2"
+                disabled={mode.kind === 'edit'}
+                className="rounded-md border border-input bg-background px-3 py-2 disabled:opacity-60"
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
@@ -151,13 +187,15 @@ export default function UsersPage(): React.ReactElement {
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">Password *</span>
+              <span className="text-muted-foreground">
+                Password {mode.kind === 'edit' && '(leave blank to keep current)'}
+              </span>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
+                {...(mode.kind === 'create' ? { required: true, minLength: 8 } : { minLength: 8 })}
+                placeholder={mode.kind === 'edit' ? 'Reset to new value' : ''}
                 className="rounded-md border border-input bg-background px-3 py-2"
               />
             </label>
@@ -184,16 +222,15 @@ export default function UsersPage(): React.ReactElement {
             </label>
           </div>
           <div className="mt-3 flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setShowNew(false)}
-              disabled={creating}
-            >
+            <Button type="button" variant="ghost" onClick={close} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit" disabled={creating} data-testid="users-create">
-              {creating ? 'Creating...' : 'Create'}
+            <Button
+              type="submit"
+              disabled={saving}
+              data-testid={mode.kind === 'create' ? 'users-create' : 'users-save'}
+            >
+              {saving ? 'Saving...' : mode.kind === 'create' ? 'Create' : 'Save'}
             </Button>
           </div>
         </form>
@@ -257,7 +294,17 @@ export default function UsersPage(): React.ReactElement {
                 <td className="p-2 text-xs text-muted-foreground">
                   {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : '-'}
                 </td>
-                <td className="p-2">
+                <td className="p-2 space-x-1">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      openEdit(u);
+                    }}
+                    data-testid="user-edit"
+                  >
+                    Edit
+                  </Button>
                   <Button
                     size="sm"
                     variant={u.isActive ? 'outline' : 'default'}
