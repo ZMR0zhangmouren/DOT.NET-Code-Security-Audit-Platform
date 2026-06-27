@@ -10,12 +10,13 @@
  *
  * §6.2 要求首次登录后必须改密码(留 Phase 2 接).
  */
-import { eq } from 'drizzle-orm';
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+
 import * as argon2 from 'argon2';
+import Database from 'better-sqlite3';
+import { eq } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 
 import { users } from './schema.js';
 

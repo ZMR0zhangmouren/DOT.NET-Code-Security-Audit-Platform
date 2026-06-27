@@ -21,6 +21,11 @@ import {
 // =====================================================================
 // §4.2.1 Project
 // =====================================================================
+export const PROJECT_VISIBILITY = ['public', 'private'] as const;
+export type Visibility = (typeof PROJECT_VISIBILITY)[number];
+export const PROJECT_STATUS = ['active', 'archived'] as const;
+export type ProjectStatus = (typeof PROJECT_STATUS)[number];
+
 export const projects = sqliteTable(
   'projects',
   {
@@ -483,5 +488,37 @@ export const unmappedRoutes = sqliteTable(
   (t) => ({
     scanStatusIdx: index('unmapped_scan_status_idx').on(t.scanRunId, t.status),
     projectStatusIdx: index('unmapped_project_status_idx').on(t.projectId, t.status),
+  }),
+);
+
+// =====================================================================
+// §5.7 AI Key 配置(每条对应一个 AI 厂商)
+// api_key_enc:AES-256-GCM 加密落盘,密钥从 APP_MASTER_KEY 环境变量读取
+// =====================================================================
+export const aiKeys = sqliteTable(
+  'ai_keys',
+  {
+    id: text('id').primaryKey(),
+    provider: text('provider', {
+      enum: ['openai', 'anthropic', 'deepseek', 'minimax', 'custom'],
+    }).notNull(),
+    label: text('label').notNull(), // 友好别名,如 "主 OpenAI Key"
+    baseUrl: text('base_url').notNull(),
+    apiKeyEnc: text('api_key_enc').notNull(), // 加密的 key(密文 + IV + auth tag 一起 base64)
+    defaultModel: text('default_model').notNull(),
+    isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+    availableModels: text('available_models', { mode: 'json' }).$type<string[]>().notNull(),
+    lastTestAt: integer('last_test_at'),
+    lastTestStatus: text('last_test_status', { enum: ['unknown', 'success', 'failed'] })
+      .notNull()
+      .default('unknown'),
+    lastTestMessage: text('last_test_message'),
+    createdBy: text('created_by').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => ({
+    activeIdx: index('ai_keys_active_idx').on(t.isActive),
+    providerIdx: index('ai_keys_provider_idx').on(t.provider),
   }),
 );

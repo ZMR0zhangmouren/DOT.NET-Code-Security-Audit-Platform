@@ -2,6 +2,7 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import importPlugin from 'eslint-plugin-import';
+import reactHooks from 'eslint-plugin-react-hooks';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
@@ -39,6 +40,7 @@ export default [
     },
     plugins: {
       import: importPlugin,
+      'react-hooks': reactHooks,
     },
     rules: {
       '@typescript-eslint/no-unused-vars': [
@@ -50,6 +52,15 @@ export default [
       'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
       eqeqeq: ['error', 'always'],
       'import/order': ['warn', { 'newlines-between': 'always', alphabetize: { order: 'asc' } }],
+    },
+  },
+
+  // React Hooks 规则(仅 React 项目)
+  {
+    files: ['apps/web/**/*.ts', 'apps/web/**/*.tsx'],
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
     },
   },
 
