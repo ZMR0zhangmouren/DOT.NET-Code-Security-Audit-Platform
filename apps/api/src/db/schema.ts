@@ -68,6 +68,9 @@ export const codeVersions = sqliteTable(
     uploadedBy: text('uploaded_by').notNull(),
     uploadedAt: integer('uploaded_at').notNull(),
     checksum: text('checksum').notNull(), // SHA-256
+    // §5.7 真接 git clone 时填充
+    clonedAt: integer('cloned_at'),
+    cloneErrorMessage: text('clone_error_message'),
   },
   (t) => ({
     projectIdx: index('code_versions_project_idx').on(t.projectId),
@@ -86,11 +89,16 @@ export const skillBundleVersions = sqliteTable(
     gitCommit: text('git_commit').notNull(),
     snapshotPath: text('snapshot_path').notNull(),
     isActive: integer('is_active', { mode: 'boolean' }).notNull().default(false),
+    // §11 Q7 双轨 C —— 默认 bundle 标记(快照可复现 vs 最新 Skill 重扫)
+    isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
+    // §11 Q7 —— published_at 是 publish 动作的时间戳,可选(老 bundle 没记时为 NULL)
+    publishedAt: integer('published_at'),
     note: text('note'),
     createdAt: integer('created_at').notNull(),
   },
   (t) => ({
     activeIdx: index('skill_bundle_active_idx').on(t.isActive),
+    defaultIdx: index('skill_bundle_default_idx').on(t.isDefault),
     versionUnique: uniqueIndex('skill_bundle_version_unique').on(t.version),
   }),
 );

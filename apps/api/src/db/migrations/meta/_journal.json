@@ -29,6 +29,13 @@
       "when": 1782640000000,
       "tag": "0003_proxy_socks5",
       "breakpoints": false
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1782720000000,
+      "tag": "0005_code_version_clone",
+      "breakpoints": false
     }
   ]
 }
