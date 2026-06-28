@@ -24,18 +24,22 @@
     "@nestjs/websockets": "^11.1.27",
     "@openai/agents": "^0.12.0",
     "@platform/shared": "workspace:*",
+    "@types/multer": "^2.1.0",
+    "@types/yauzl": "^3.4.0",
     "argon2": "^0.44.0",
     "better-sqlite3": "^12.11.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
     "drizzle-orm": "^0.45.2",
+    "multer": "^2.2.0",
     "openai": "^6.45.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "yauzl": "^3.4.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",

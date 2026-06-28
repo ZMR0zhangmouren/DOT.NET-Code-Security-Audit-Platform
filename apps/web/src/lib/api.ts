@@ -77,8 +77,17 @@ async function request<T>(path: string, init: RequestInit & { auth?: boolean } =
 
 export const api = {
   get: <T>(path: string) => request<T>(path, { method: 'GET' }),
-  post: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
+  post: <T>(path: string, body?: unknown) => {
+    const init: RequestInit = { method: 'POST' };
+    if (body instanceof FormData) {
+      // 让浏览器自动设置 multipart/form-data + boundary
+      init.body = body;
+    } else if (body !== undefined) {
+      init.headers = { 'content-type': 'application/json' };
+      init.body = JSON.stringify(body);
+    }
+    return request<T>(path, init);
+  },
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
