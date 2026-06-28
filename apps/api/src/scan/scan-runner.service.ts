@@ -15,12 +15,14 @@ import {
   scanRuns,
   skillBundleVersions,
   skillExecutions,
+  vulnerabilities,
 } from '../db/schema.js';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ScanGateway } from '../realtime/scan.gateway.js'; // runtime ref (@WebSocketServer)
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { StorageService } from '../storage/storage.service.js'; // runtime ref (NestJS DI)
 
+import { computeApiCoverage, type VulnLookup } from './coverage.util.js';
 import { CodeFileSystem } from './tools/code-tools.service.js';
 
 const MAX_ITERATIONS = 30;
@@ -332,6 +334,21 @@ export class ScanRunnerService implements OnModuleDestroy {
     }
 
     const status = seenSkills.size > 0 ? 'COMPLETED' : 'PARTIAL';
+
+    // §5.3 API 覆盖统计 —— 在 finalize 阶段聚合 route_mapping / framework_audit 产物 + vulnerabilities 表,
+    // 计算 controllerCoveragePercent (×100 存) 和 apiCoverageStatus,写回 scanRuns。
+    // 注意:这里只是统计入口覆盖的事实情况,不阻塞 pipelineExecution (硬门禁 §2.8 由 auditSurfaceStatus / gate 链路守)。
+    const vulnLookup: VulnLookup = (id) =>
+      this.db
+        .select({
+          filePath: vulnerabilities.filePath,
+          vulnType: vulnerabilities.vulnType,
+        })
+        .from(vulnerabilities)
+        .where(eq(vulnerabilities.scanRunId, id))
+        .all();
+    const coverage = computeApiCoverage(vulnLookup, scanRunId, outputRoot);
+
     this.db
       .update(scanRuns)
       .set({
@@ -339,6 +356,9 @@ export class ScanRunnerService implements OnModuleDestroy {
         finishedAt: now,
         durationSec: Math.floor((now - (this.loadRun(scanRunId)?.startedAt ?? now)) / 1000),
         auditSurfaceStatus: status,
+        apiCoverageStatus: coverage.apiCoverageStatus,
+        controllerCoveragePercent: coverage.controllerCoveragePercent,
+        authCoveragePercent: coverage.authCoveragePercent,
         pipelineExecution: 'COMPLETED',
         gateDecision: 'PASS',
       })
@@ -350,7 +370,10 @@ export class ScanRunnerService implements OnModuleDestroy {
     this.emitLog(
       scanRunId,
       'info',
-      `scan completed; skills=${skillsRecorded.length}, output=${outputRoot}`,
+      `scan completed; skills=${skillsRecorded.length}, output=${outputRoot}, ` +
+        `coverage=${coverage.apiCoverageStatus} ` +
+        `(${coverage.controllerCoveragePercent === null ? 'N/A' : (coverage.controllerCoveragePercent / 100).toFixed(2) + '%'} controller, ` +
+        `${coverage.coveredRoutes.length}/${coverage.totalRoutes} routes)`,
     );
     runningScans.delete(scanRunId);
   }

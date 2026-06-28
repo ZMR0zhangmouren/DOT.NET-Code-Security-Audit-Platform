@@ -121,8 +121,40 @@ export class ReportService {
     lines.push(`- **Triggered by**: \`${g.run.triggeredBy}\` (\`${g.run.triggerType}\`)`);
     lines.push('');
 
+    // §1.5 入口覆盖统计 (§5.3 API Coverage) —— 作为 §1 Header 的扩展子段渲染
+    lines.push('### 入口覆盖统计 (§5.3)');
+    lines.push('');
+    lines.push('| 指标 | 值 |');
+    lines.push('|---|---|');
+    lines.push(`| apiCoverageStatus | \`${g.run.apiCoverageStatus}\` |`);
+    lines.push(
+      `| controllerCoveragePercent | ${g.run.controllerCoveragePercent === null ? 'N/A' : (g.run.controllerCoveragePercent / 100).toFixed(2) + '%'} (raw=${g.run.controllerCoveragePercent ?? 'null'}) |`,
+    );
+    lines.push(
+      `| authCoveragePercent | ${g.run.authCoveragePercent === null ? 'N/A' : (g.run.authCoveragePercent / 100).toFixed(2) + '%'} (raw=${g.run.authCoveragePercent ?? 'null'}) |`,
+    );
+    lines.push(`| coverageMode | \`${g.run.coverageMode}\` |`);
+    lines.push('');
+    const statusIcon =
+      g.run.apiCoverageStatus === 'COMPLETE'
+        ? '[PASS]'
+        : g.run.apiCoverageStatus === 'PARTIAL'
+          ? '[WARN]'
+          : '[FAIL]';
+    lines.push(`- **覆盖状态**: ${statusIcon} ${g.run.apiCoverageStatus}`);
+    if (g.run.controllerCoveragePercent === null) {
+      lines.push('- **备注**: 找不到 `route_mapping/` 产物,覆盖率未计算(分母为 0)。');
+    } else if (g.run.apiCoverageStatus === 'COMPLETE') {
+      lines.push('- **备注**: 已覆盖 ≥95%,门禁通过。');
+    } else if (g.run.apiCoverageStatus === 'PARTIAL') {
+      lines.push('- **备注**: 已覆盖 ≥50% 但 <95%,建议补一次 route_mapper skill。');
+    } else {
+      lines.push('- **备注**: 已覆盖 <50% 或无产物,需要重跑 route_mapper skill。');
+    }
+    lines.push('');
+
     // §2 Execution checklist
-    lines.push('## 1. Execution Checklist');
+    lines.push('## 2. Execution Checklist');
     lines.push('');
     lines.push(
       `- [${g.run.status === 'succeeded' ? 'x' : ' '}] ScanRunner 完成 (status=${g.run.status})`,
@@ -290,6 +322,12 @@ export class ReportService {
         bySeverity: groupCount(g.vulns, (v) => v.severity),
         byType: groupCount(g.vulns, (v) => v.vulnType),
         total: g.vulns.length,
+      },
+      coverage: {
+        apiCoverageStatus: g.run.apiCoverageStatus,
+        controllerCoveragePercent: g.run.controllerCoveragePercent,
+        authCoveragePercent: g.run.authCoveragePercent,
+        coverageMode: g.run.coverageMode,
       },
     };
   }
