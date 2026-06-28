@@ -492,6 +492,34 @@ export const unmappedRoutes = sqliteTable(
 );
 
 // =====================================================================
+// §5.7 Git Credentials —— system/project 两种 scope 的 SSH Key / HTTPS Token
+// secret_enc:AES-256-GCM 加密落盘(复用 crypto.util.ts),前端不回显明文
+// =====================================================================
+export const gitCredentials = sqliteTable(
+  'git_credentials',
+  {
+    id: text('id').primaryKey(),
+    scope: text('scope', { enum: ['system', 'project'] }).notNull(),
+    projectId: text('project_id').references(() => projects.id), // scope='project' 时必填
+    label: text('label').notNull(), // 友好别名,如 "GitHub 个人 token"
+    kind: text('kind', { enum: ['ssh_key', 'https_token'] }).notNull(),
+    hostPattern: text('host_pattern').notNull(), // e.g. "github.com" / "*"
+    username: text('username'), // https_token 用
+    secretEnc: text('secret_enc').notNull(), // AES-256-GCM 加密的私钥或 token
+    fingerprint: text('fingerprint').notNull(), // 末 4 位 / SHA 短摘要
+    isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+    createdBy: text('created_by').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => ({
+    activeIdx: index('git_credentials_active_idx').on(t.isActive),
+    scopeProjectIdx: index('git_credentials_scope_project_idx').on(t.scope, t.projectId),
+    hostPatternIdx: index('git_credentials_host_pattern_idx').on(t.hostPattern),
+  }),
+);
+
+// =====================================================================
 // §5.7 AI Key 配置(每条对应一个 AI 厂商)
 // api_key_enc:AES-256-GCM 加密落盘,密钥从 APP_MASTER_KEY 环境变量读取
 // =====================================================================

@@ -20,7 +20,39 @@ interface AiKey {
   updatedAt: number;
 }
 
+interface GitCredential {
+  id: string;
+  scope: 'system' | 'project';
+  projectId: string | null;
+  label: string;
+  kind: 'ssh_key' | 'https_token';
+  hostPattern: string;
+  username: string | null;
+  fingerprint: string;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface ProxyConfig {
+  id: string;
+  protocol: 'http' | 'https' | 'socks' | null;
+  host: string | null;
+  port: number | null;
+  username: string | null;
+  passwordHint: string | null;
+  applyTo: 'all' | 'http_only' | 'all_outbound';
+  isActive: boolean;
+  updatedBy: string | null;
+  updatedAt: number;
+  testStatus: 'unknown' | 'success' | 'failed';
+  testMessage: string | null;
+}
+
 type Mode = { kind: 'create' } | { kind: 'edit'; key: AiKey };
+type GitMode = { kind: 'create' } | { kind: 'edit'; cred: GitCredential };
+type ProxyMode = { kind: 'edit'; cfg: ProxyConfig };
 
 /**
  * §5.7 /admin/config —— AI Key CRUD + Test + 模型选择
@@ -181,6 +213,193 @@ export default function ConfigPage(): React.ReactElement {
   }
 
   const [testing, setTesting] = useState<string | null>(null);
+
+  // ---- Git Credentials 状态 ----
+  const [gitCreds, setGitCreds] = useState<GitCredential[]>([]);
+  const [gitLoading, setGitLoading] = useState(true);
+  const [gitMode, setGitMode] = useState<GitMode | null>(null);
+  const [gitSaving, setGitSaving] = useState(false);
+  const [gitScope, setGitScope] = useState<'system' | 'project'>('system');
+  const [gitProjectId, setGitProjectId] = useState('');
+  const [gitLabel, setGitLabel] = useState('');
+  const [gitKind, setGitKind] = useState<'ssh_key' | 'https_token'>('https_token');
+  const [gitHostPattern, setGitHostPattern] = useState('');
+  const [gitUsername, setGitUsername] = useState('');
+  const [gitSecret, setGitSecret] = useState('');
+  const [gitActive, setGitActive] = useState(true);
+
+  // ---- Proxy Config 状态 ----
+  const [proxyCfg, setProxyCfg] = useState<ProxyConfig | null>(null);
+  const [proxyLoading, setProxyLoading] = useState(true);
+  const [proxyMode, setProxyMode] = useState<ProxyMode | null>(null);
+  const [proxySaving, setProxySaving] = useState(false);
+  const [proxyProtocol, setProxyProtocol] = useState<'http' | 'https' | 'socks' | null>('http');
+  const [proxyHost, setProxyHost] = useState('');
+  const [proxyPort, setProxyPort] = useState<number | ''>('');
+  const [proxyUsername, setProxyUsername] = useState('');
+  const [proxyPassword, setProxyPassword] = useState('');
+  const [proxyApplyTo, setProxyApplyTo] = useState<'all' | 'http_only' | 'all_outbound'>(
+    'all_outbound',
+  );
+  const [proxyActive, setProxyActive] = useState(true);
+
+  async function refreshGitCreds(): Promise<void> {
+    setGitLoading(true);
+    try {
+      const data = await api.get<GitCredential[]>('/admin/git-credentials');
+      setGitCreds(data);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setGitLoading(false);
+    }
+  }
+
+  async function refreshProxy(): Promise<void> {
+    setProxyLoading(true);
+    try {
+      const data = await api.get<ProxyConfig | null>('/admin/proxy');
+      setProxyCfg(data);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setProxyLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void refreshGitCreds();
+    void refreshProxy();
+  }, []);
+
+  function openGitCreate(): void {
+    setGitMode({ kind: 'create' });
+    setGitScope('system');
+    setGitProjectId('');
+    setGitLabel('');
+    setGitKind('https_token');
+    setGitHostPattern('');
+    setGitUsername('');
+    setGitSecret('');
+    setGitActive(true);
+  }
+
+  function openGitEdit(c: GitCredential): void {
+    setGitMode({ kind: 'edit', cred: c });
+    setGitScope(c.scope);
+    setGitProjectId(c.projectId ?? '');
+    setGitLabel(c.label);
+    setGitKind(c.kind);
+    setGitHostPattern(c.hostPattern);
+    setGitUsername(c.username ?? '');
+    setGitSecret(''); // 不回显
+    setGitActive(c.isActive);
+  }
+
+  function closeGitModal(): void {
+    setGitMode(null);
+  }
+
+  async function onSubmitGit(e: FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault();
+    if (!gitMode) return;
+    setGitSaving(true);
+    setErr(null);
+    try {
+      if (gitMode.kind === 'create') {
+        await api.post('/admin/git-credentials', {
+          scope: gitScope,
+          projectId: gitScope === 'project' ? gitProjectId : null,
+          label: gitLabel,
+          kind: gitKind,
+          hostPattern: gitHostPattern,
+          username: gitKind === 'https_token' ? gitUsername : null,
+          secret: gitSecret,
+          isActive: gitActive,
+        });
+      } else {
+        const patch: Record<string, unknown> = {
+          label: gitLabel,
+          hostPattern: gitHostPattern,
+          username: gitKind === 'https_token' ? gitUsername : null,
+          isActive: gitActive,
+        };
+        if (gitSecret.trim()) patch['secret'] = gitSecret;
+        await api.patch(`/admin/git-credentials/${gitMode.cred.id}`, patch);
+      }
+      closeGitModal();
+      void refreshGitCreds();
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : (e as Error).message);
+    } finally {
+      setGitSaving(false);
+    }
+  }
+
+  async function removeGitCred(c: GitCredential): Promise<void> {
+    if (!confirm(`Delete git credential "${c.label}"?`)) return;
+    try {
+      await api.delete(`/admin/git-credentials/${c.id}`);
+      void refreshGitCreds();
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  }
+
+  function openProxyEdit(c: ProxyConfig): void {
+    setProxyMode({ kind: 'edit', cfg: c });
+    setProxyProtocol(c.protocol);
+    setProxyHost(c.host ?? '');
+    setProxyPort(c.port ?? '');
+    setProxyUsername(c.username ?? '');
+    setProxyPassword(''); // 不回显
+    setProxyApplyTo(c.applyTo);
+    setProxyActive(c.isActive);
+  }
+
+  function closeProxyModal(): void {
+    setProxyMode(null);
+  }
+
+  async function onSubmitProxy(e: FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault();
+    if (!proxyMode) return;
+    setProxySaving(true);
+    setErr(null);
+    try {
+      await api.patch('/admin/proxy', {
+        protocol: proxyProtocol,
+        host: proxyProtocol === null ? null : proxyHost,
+        port: proxyProtocol === null ? null : proxyPort === '' ? null : Number(proxyPort),
+        username: proxyProtocol === null ? null : proxyUsername || null,
+        password: proxyPassword.trim() ? proxyPassword : null,
+        applyTo: proxyApplyTo,
+        isActive: proxyActive,
+      });
+      closeProxyModal();
+      void refreshProxy();
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : (e as Error).message);
+    } finally {
+      setProxySaving(false);
+    }
+  }
+
+  async function testProxy(): Promise<void> {
+    setErr(null);
+    try {
+      const result = await api.post<{ ok: boolean; message: string; latencyMs: number }>(
+        '/admin/proxy/test',
+      );
+      alert(
+        result.ok ? `OK (${result.latencyMs}ms)\n${result.message}` : `FAIL\n${result.message}`,
+      );
+      void refreshProxy();
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  }
+
   async function testConnection(k: AiKey): Promise<void> {
     setTesting(k.id);
     setErr(null);
@@ -461,13 +680,430 @@ export default function ConfigPage(): React.ReactElement {
         )}
       </section>
 
-      <section>
-        <h2 className="mb-3 text-lg font-semibold">Other (Phase 2+)</h2>
-        <ul className="space-y-1 text-sm text-muted-foreground">
-          <li>- Git credentials (system-level SSH Key / HTTPS Token)</li>
-          <li>- Network proxy (HTTP / HTTPS / SOCKS5)</li>
-          <li>- Tool validation status</li>
-        </ul>
+      {/* ---------- §5.7 Git Credentials ---------- */}
+      <section className="mb-6">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Git Credentials</h2>
+          <Button onClick={() => openGitCreate()} data-testid="git-new">
+            + Add Git Credential
+          </Button>
+        </div>
+
+        {gitMode && (
+          <form
+            onSubmit={(e) => {
+              void onSubmitGit(e);
+            }}
+            className="mb-4 rounded-lg border bg-card p-4"
+            data-testid="git-form"
+          >
+            <h3 className="mb-3 text-base font-semibold">
+              {gitMode.kind === 'create' ? 'New Git Credential' : `Edit: ${gitMode.cred.label}`}
+            </h3>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-muted-foreground">Scope *</span>
+                <select
+                  value={gitScope}
+                  onChange={(e) => setGitScope(e.target.value as 'system' | 'project')}
+                  disabled={gitMode.kind === 'edit'}
+                  className="rounded-md border border-input bg-background px-3 py-2"
+                  data-testid="git-scope"
+                >
+                  <option value="system">system</option>
+                  <option value="project">project</option>
+                </select>
+              </label>
+              {gitScope === 'project' && (
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-muted-foreground">Project ID *</span>
+                  <input
+                    value={gitProjectId}
+                    onChange={(e) => setGitProjectId(e.target.value)}
+                    required
+                    disabled={gitMode.kind === 'edit'}
+                    placeholder="proj-..."
+                    className="rounded-md border border-input bg-background px-3 py-2 font-mono"
+                  />
+                </label>
+              )}
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-muted-foreground">Label *</span>
+                <input
+                  value={gitLabel}
+                  onChange={(e) => setGitLabel(e.target.value)}
+                  required
+                  placeholder="GitHub 个人 token"
+                  className="rounded-md border border-input bg-background px-3 py-2"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-muted-foreground">Kind *</span>
+                <select
+                  value={gitKind}
+                  onChange={(e) => setGitKind(e.target.value as 'ssh_key' | 'https_token')}
+                  disabled={gitMode.kind === 'edit'}
+                  className="rounded-md border border-input bg-background px-3 py-2"
+                >
+                  <option value="https_token">https_token</option>
+                  <option value="ssh_key">ssh_key</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-muted-foreground">Host Pattern *</span>
+                <input
+                  value={gitHostPattern}
+                  onChange={(e) => setGitHostPattern(e.target.value)}
+                  required
+                  placeholder="github.com"
+                  className="rounded-md border border-input bg-background px-3 py-2 font-mono"
+                />
+              </label>
+              {gitKind === 'https_token' && (
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-muted-foreground">Username *</span>
+                  <input
+                    value={gitUsername}
+                    onChange={(e) => setGitUsername(e.target.value)}
+                    required
+                    placeholder="octocat"
+                    className="rounded-md border border-input bg-background px-3 py-2"
+                  />
+                </label>
+              )}
+              <label className="flex flex-col gap-1 text-sm md:col-span-2">
+                <span className="text-muted-foreground">
+                  Secret {gitMode.kind === 'edit' && '(leave blank to keep current)'}
+                </span>
+                <textarea
+                  value={gitSecret}
+                  onChange={(e) => setGitSecret(e.target.value)}
+                  {...(gitMode.kind === 'create' ? { required: true } : {})}
+                  rows={gitKind === 'ssh_key' ? 6 : 2}
+                  placeholder={
+                    gitKind === 'ssh_key' ? '-----BEGIN OPENSSH PRIVATE KEY-----' : 'ghp_...'
+                  }
+                  className="rounded-md border border-input bg-background px-3 py-2 font-mono text-xs"
+                  data-testid="git-secret"
+                />
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={gitActive}
+                  onChange={(e) => setGitActive(e.target.checked)}
+                />
+                <span className="text-muted-foreground">Active</span>
+              </label>
+            </div>
+            <div className="mt-3 flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={closeGitModal} disabled={gitSaving}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={gitSaving || !gitLabel || !gitHostPattern || !gitSecret}
+                data-testid="git-save"
+              >
+                {gitSaving ? 'Saving...' : gitMode.kind === 'create' ? 'Create' : 'Save'}
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {gitLoading ? (
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        ) : gitCreds.length === 0 ? (
+          <p
+            className="rounded-lg border bg-card p-6 text-sm text-muted-foreground"
+            data-testid="git-empty"
+          >
+            No git credentials configured yet.
+          </p>
+        ) : (
+          <table className="w-full rounded-lg border bg-card text-sm" data-testid="git-table">
+            <thead>
+              <tr className="border-b bg-muted text-left">
+                <th className="p-2">Label</th>
+                <th className="p-2">Scope</th>
+                <th className="p-2">Kind</th>
+                <th className="p-2">Host</th>
+                <th className="p-2">Username</th>
+                <th className="p-2">Fingerprint</th>
+                <th className="p-2">Active</th>
+                <th className="p-2">Created By</th>
+                <th className="p-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {gitCreds.map((c) => (
+                <tr key={c.id} className="border-b" data-testid="git-row">
+                  <td className="p-2 font-semibold">{c.label}</td>
+                  <td className="p-2 font-mono text-xs">
+                    {c.scope}
+                    {c.projectId ? `:${c.projectId}` : ''}
+                  </td>
+                  <td className="p-2 font-mono text-xs">{c.kind}</td>
+                  <td className="p-2 font-mono text-xs">{c.hostPattern}</td>
+                  <td className="p-2 font-mono text-xs">{c.username ?? '-'}</td>
+                  <td className="p-2 font-mono text-xs">{c.fingerprint}</td>
+                  <td className="p-2">
+                    <span
+                      className={
+                        c.isActive
+                          ? 'rounded bg-primary px-2 py-0.5 text-xs text-primary-foreground'
+                          : 'rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground'
+                      }
+                    >
+                      {c.isActive ? 'yes' : 'no'}
+                    </span>
+                  </td>
+                  <td className="p-2 font-mono text-xs">{c.createdBy}</td>
+                  <td className="p-2 space-x-1">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        openGitEdit(c);
+                      }}
+                      data-testid="git-edit"
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        void removeGitCred(c);
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {/* ---------- §5.7 Proxy Config ---------- */}
+      <section className="mb-6">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Network Proxy</h2>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                void testProxy();
+              }}
+              data-testid="proxy-test"
+            >
+              Test Connection
+            </Button>
+            {proxyCfg && (
+              <Button onClick={() => openProxyEdit(proxyCfg)} data-testid="proxy-edit">
+                Edit
+              </Button>
+            )}
+            {!proxyCfg && (
+              <Button
+                onClick={() =>
+                  setProxyMode({
+                    kind: 'edit',
+                    cfg: {
+                      id: 'singleton',
+                      protocol: 'http',
+                      host: '',
+                      port: null,
+                      username: null,
+                      passwordHint: null,
+                      applyTo: 'all_outbound',
+                      isActive: true,
+                      updatedBy: null,
+                      updatedAt: 0,
+                      testStatus: 'unknown',
+                      testMessage: null,
+                    },
+                  })
+                }
+                data-testid="proxy-new"
+              >
+                + Configure
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {proxyMode && (
+          <form
+            onSubmit={(e) => {
+              void onSubmitProxy(e);
+            }}
+            className="mb-4 rounded-lg border bg-card p-4"
+            data-testid="proxy-form"
+          >
+            <h3 className="mb-3 text-base font-semibold">Proxy Configuration</h3>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-muted-foreground">Protocol</span>
+                <select
+                  value={proxyProtocol ?? ''}
+                  onChange={(e) =>
+                    setProxyProtocol(
+                      e.target.value === '' ? null : (e.target.value as 'http' | 'https' | 'socks'),
+                    )
+                  }
+                  className="rounded-md border border-input bg-background px-3 py-2"
+                >
+                  <option value="">(direct mode - no proxy)</option>
+                  <option value="http">http</option>
+                  <option value="https">https</option>
+                  <option value="socks">socks</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-muted-foreground">Apply To *</span>
+                <select
+                  value={proxyApplyTo}
+                  onChange={(e) =>
+                    setProxyApplyTo(e.target.value as 'all' | 'http_only' | 'all_outbound')
+                  }
+                  className="rounded-md border border-input bg-background px-3 py-2"
+                >
+                  <option value="all_outbound">all_outbound</option>
+                  <option value="all">all</option>
+                  <option value="http_only">http_only</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-muted-foreground">Host {proxyProtocol !== null && '*'}</span>
+                <input
+                  value={proxyHost}
+                  onChange={(e) => setProxyHost(e.target.value)}
+                  required={proxyProtocol !== null}
+                  disabled={proxyProtocol === null}
+                  placeholder="127.0.0.1"
+                  className="rounded-md border border-input bg-background px-3 py-2 font-mono"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-muted-foreground">Port {proxyProtocol !== null && '*'}</span>
+                <input
+                  type="number"
+                  value={proxyPort}
+                  onChange={(e) =>
+                    setProxyPort(e.target.value === '' ? '' : Number(e.target.value))
+                  }
+                  required={proxyProtocol !== null}
+                  disabled={proxyProtocol === null}
+                  placeholder="7890"
+                  className="rounded-md border border-input bg-background px-3 py-2 font-mono"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-muted-foreground">Username</span>
+                <input
+                  value={proxyUsername}
+                  onChange={(e) => setProxyUsername(e.target.value)}
+                  disabled={proxyProtocol === null}
+                  className="rounded-md border border-input bg-background px-3 py-2"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-muted-foreground">
+                  Password {proxyCfg?.passwordHint && `(current: ${proxyCfg.passwordHint})`}
+                </span>
+                <input
+                  type="password"
+                  value={proxyPassword}
+                  onChange={(e) => setProxyPassword(e.target.value)}
+                  disabled={proxyProtocol === null}
+                  placeholder="leave blank to keep current"
+                  className="rounded-md border border-input bg-background px-3 py-2 font-mono"
+                />
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={proxyActive}
+                  onChange={(e) => setProxyActive(e.target.checked)}
+                />
+                <span className="text-muted-foreground">Active</span>
+              </label>
+            </div>
+            <div className="mt-3 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={closeProxyModal}
+                disabled={proxySaving}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={proxySaving} data-testid="proxy-save">
+                {proxySaving ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {proxyLoading ? (
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        ) : proxyCfg ? (
+          <div className="rounded-lg border bg-card p-4 text-sm" data-testid="proxy-summary">
+            <div className="grid gap-2 md:grid-cols-3">
+              <div>
+                <div className="text-xs text-muted-foreground">Protocol</div>
+                <div className="font-mono">{proxyCfg.protocol ?? '(direct)'}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Endpoint</div>
+                <div className="font-mono">
+                  {proxyCfg.host && proxyCfg.port ? `${proxyCfg.host}:${proxyCfg.port}` : '-'}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Username</div>
+                <div className="font-mono">{proxyCfg.username ?? '-'}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Apply To</div>
+                <div className="font-mono">{proxyCfg.applyTo}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Active</div>
+                <div>{proxyCfg.isActive ? 'yes' : 'no'}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Test</div>
+                <div
+                  className={
+                    proxyCfg.testStatus === 'success'
+                      ? 'text-green-600'
+                      : proxyCfg.testStatus === 'failed'
+                        ? 'text-destructive'
+                        : 'text-muted-foreground'
+                  }
+                  title={proxyCfg.testMessage ?? ''}
+                >
+                  {proxyCfg.testStatus === 'success'
+                    ? 'OK'
+                    : proxyCfg.testStatus === 'failed'
+                      ? 'FAIL'
+                      : 'unknown'}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p
+            className="rounded-lg border bg-card p-6 text-sm text-muted-foreground"
+            data-testid="proxy-empty"
+          >
+            No proxy configured. Direct mode by default.
+          </p>
+        )}
       </section>
     </main>
   );

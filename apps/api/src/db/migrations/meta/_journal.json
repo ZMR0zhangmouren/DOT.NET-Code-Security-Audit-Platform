@@ -15,6 +15,13 @@
       "when": 1782567394942,
       "tag": "0001_dapper_steve_rogers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1782635017912,
+      "tag": "0002_add_git_credentials",
+      "breakpoints": true
     }
   ]
 }
