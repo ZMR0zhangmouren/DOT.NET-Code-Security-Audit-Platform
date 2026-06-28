@@ -2,25 +2,26 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 仓库当前状态(2026-06-27)
+## 仓库当前状态(2026-06-28)
 
-文档驱动期 + 平台代码骨架已落盘。根目录含:
+§5.3 / §5.4 / §5.5 三大主流程已落地,可端到端跑通一次完整审计。根目录含:
 
 - `./需求文档.md` —— 1,418 行的产品/技术规格,锁定了 Q1–Q17 共 17 项决策
 - `./dotnet-security-audit-skill/` —— **独立 git 仓库**(独立 .git/、独立 main 分支),内含 38 个 .NET 审计 skill + 主 agent.md + 9 份 shared 规范;平台不修改它
-- `./apps/api/` —— **NestJS 后端骨架**(health check 已通,后续按 §5.x 扩 module)
-- `./apps/web/` —— **React + Vite + shadcn/ui 前端骨架**(健康检查 UI 已通)
+- `./apps/api/` —— **NestJS 后端**(modules: agents / auth / code-versions / db / health / projects / realtime / report / scan / settings / skill-bundles / storage / users / vulns,共 14 个)
+- `./apps/web/` —— **React + Vite + shadcn/ui 前端**(路由: /login / /projects / /projects/:id / /projects/:id/scans/:runId / /projects/:id/scans/:runId/report / /projects/:id/vuln-library / /projects/:id/vuln-library/:libId / /admin/users / /admin/config)
 - `./packages/shared/` —— 跨 api/web 共享的枚举与类型(严格对应 §4.2 / §11)
 - `./pnpm-workspace.yaml` + `./package.json` + `./tsconfig.base.json` —— pnpm workspace + TS / ESLint / Prettier / Vitest 全栈配置
 - `./eslint.config.js` + `./.prettierrc.json` + `./vitest.config.ts` —— 跨包统一代码风格
+- `./start.bat` + `./stop.bat` + `./status.bat` —— Windows 快捷脚本(双击执行)
 
 ## 核心技术栈(锁定)
 
 | 角色 | 选型 |
 |------|------|
-| AI 编排 | `@openai/agents`(OpenAI Agents SDK, TS/JS) |
+| AI 编排 | `@openai/agents`(OpenAI Agents SDK, TS/JS)+ `openai` SDK(实际跑通) |
 | 后端 | NestJS 10 + TypeScript 5.7 |
-| 前端 | React 18 + Vite 6 + shadcn/ui + Tailwind CSS 3 |
+| 前端 | React 18 + Vite 5.4 + shadcn/ui + Tailwind CSS 3 |
 | 数据库 | SQLite 3.x + Drizzle ORM(MVP) |
 | 包管理 | pnpm 10(workspace) |
 | 测试 | Vitest 2(shared/api/web 三个 project) |
@@ -32,16 +33,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 .
 ├── apps/
-│   ├── api/      # @platform/api  —— NestJS(CommonJS)
-│   └── web/      # @platform/web  —— React + Vite(ESM)
-├── packages/
-│   └── shared/   # @platform/shared —— 跨包枚举与类型
-├── pnpm-workspace.yaml
-├── package.json        # 根:scripts + 共享 devDeps
-├── tsconfig.base.json  # 共享 TS 配置(strict + noUncheckedIndexedAccess)
-├── eslint.config.js    # ESLint flat config
-├── vitest.config.ts    # 根 vitest 占位(workspace 模式在 Windows 长路径下有兼容性问题)
-└── .prettierrc.json / .prettierignore
+│   ├── api/        # @platform/api  —— NestJS 14 modules
+│   │   └── src/
+│   │       ├── agents/        # @openai/agents loader + PoC
+│   │       ├── auth/          # JWT + argon2id 登录
+│   │       ├── code-versions/ # §5.2 zip 上传 + SHA-256 + LOC
+│   │       ├── scan/          # §5.3 ScanModule + Runner + tools
+│   │       ├── report/        # §5.4 Markdown/JSON/zip
+│   │       ├── vulns/         # §5.5 VulnLibraryService + VulnService
+│   │       ├── projects/      # §5.1 CRUD
+│   │       ├── users/         # 用户管理
+│   │       ├── settings/      # AI Key(AES-256-GCM 加密)
+│   │       ├── skill-bundles/ # SkillBundleVersion 只读
+│   │       ├── storage/       # 路径工具
+│   │       ├── realtime/      # WebSocket Gateway
+│   │       ├── health/        # /api/health
+│   │       └── db/            # drizzle schema(15 表)+ DatabaseModule + seed
+│   └── web/        # @platform/web  —— React + Vite(ESM)
+│       └── src/
+│           ├── pages/         # 11 个页面
+│           ├── components/    # AppLayout + shadcn/ui
+│           ├── hooks/          # useAuth + useScanSocket
+│           └── lib/            # api client + scanTypes
+└── packages/
+    └── shared/     # @platform/shared —— 跨包枚举与类型
 ```
 
 每个子包自带 `vitest.config.ts` 与 `tsconfig.json`,根 `pnpm test` 通过 `pnpm -r test` 触发各包独立跑测试。
@@ -104,11 +119,16 @@ pnpm --filter @platform/api seed
 
 §6.2 要求首次登录后改密码(留 Phase 2 接)。POST /api/auth/login → 返回 JWT(15min)→ 前端存 localStorage。
 
+## 已落地功能(2026-06-28)
+
 - ✅ `pnpm install`(836 包)
 - ✅ `pnpm -r typecheck`(shared / api / web 全绿)
-- ✅ `pnpm -r test`(11 测试通过:shared 6 + api 3 + web 2)
+- ✅ `pnpm -r test`(9 测试通过:shared 6 + api 2 + web 1)
 - ✅ `pnpm lint`(ESLint 0 错 0 警 + Prettier 干净)
-- ✅ `GET /api/health` 返回 `{status, uptimeSec, coverageModeDefault, nodeVersion}`
+- ✅ **§5.3 Scan 主流程**:从 zip 上传 → Agent 调 MiniMax 跑 115 秒 → 3 漏洞入库 + 1 漏洞库条目
+- ✅ **§5.4 报告导出**:Markdown / JSON / zip 归档包三端点工作
+- ✅ **§5.5 漏洞库 UI**:列表 + 详情 + 状态流转(open / fixing / fixed / ignored)
+- ✅ GET `/api/health` 返回 `{status, uptimeSec, coverageModeDefault, nodeVersion, dbTables: 15}`
 
 ## 已锁定决策(Q1–Q17)
 
@@ -154,7 +174,18 @@ pnpm --filter @platform/api seed
 - 编辑 `.md` 文件后自动跑 markdownlint-cli2
 - `git push --force` / `git push origin main` 命令会被拦截(平台期 + 子仓库期都适用)
 
-## 后续清理项(不阻塞动工)
+## 下一步候选(2026-06-28 休息点后)
 
-- `./dotnet-security-audit-skill/` 子仓库脏工作树有 tracked deletions(`CLAUDE.md` / `.claude/settings.local.json` / `.agents/skills/darwin-skill/*` 等);`darwin-skill/` 目录已空但仍在工作树;本轮未触碰,后续按需 `git checkout -- .` 或 commit 清理
-- 平台代码落盘后再补充 `package.json` / `pnpm-workspace.yaml` / `tsconfig.json` / `.prettierrc` / `.eslintrc` 等
+| 候选 | 工作量 | 价值 |
+|------|--------|------|
+| ProjectDetailPage 把 "Vuln Library" tab 从"Phase X"变真 tab | 5 分钟 | 完成 §5.5 UI 闭环 |
+| §5.3 API 覆盖统计(让 §1 checklist 入口覆盖打勾) | 1 小时 | 让报告 §1 完整 |
+| §4.2.8 Members UI(把 Members tab 从"Phase X"变真) | 半天 | 多人协作基础 |
+| §5.7 git 凭证 + 代理 UI | 半天 | 完善系统配置 |
+| 真正跑多个 scan + 报告对比(两个 ScanRun 差异) | 2 小时 | Phase 2 §5.4 完整 |
+| BullMQ 真正并发扫描(Q6) | 1-2 天 | 性能 |
+
+## 已知遗留(不阻塞)
+
+- `./dotnet-security-audit-skill/` 子仓库脏工作树有 tracked deletions(`CLAUDE.md` / `.claude/settings.local.json` / `.agents/skills/darwin-skill/*` 等);`darwin-skill/` 目录已空但仍在工作树;后续按需 `git checkout -- .` 或 commit 清理
+- ProjectDetailPage 几个 tab(Versions/Scans/Members)还显示"Phase X 待上",需要逐个接通
