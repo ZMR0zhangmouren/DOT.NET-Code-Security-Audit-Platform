@@ -144,9 +144,11 @@ pnpm --filter @platform/api seed
 - ✅ **§5.5 漏洞库 UI**:列表 + 详情 + 状态流转(open / fixing / fixed / ignored),ProjectDetailPage 上 Vuln Library tab 已从 "Phase X 待上" 变成真 Link(`bde81f9`)
 - ✅ **§4.2.8 Members UI**:ProjectDetailPage 上 Members tab 从 "Phase X 待上" 变成真页面 —— 邀请 / 角色 / 移除,只 owner / lead 能 grant(`bde81f9`)
 - ✅ **§5.7 git 凭证 + 代理 UI**:`/admin/config` 页面新增 git 凭证(GitHub PAT / SSH key)与代理配置(支持 socks5,enum 已升级) + `proxyConfigs.protocol` 从 `socks` 升 `socks5` 符合 Q13(`6b8cb83` + `7b6e018`)
+- ✅ **§5.7 真接 git clone**:`apps/api/src/git-clone/git-clone.service.ts` 调本机 `git` CLI(`--depth=1` + 5min timeout);HTTPS token 注入 `https://user:token@host/path`,SSH key 写 tmp + `GIT_SSH_COMMAND`;`code_versions` 加 `cloned_at` + `clone_error_message` 字段(`0005_code_version_clone.sql` 迁移);`POST /api/code-versions/from-git` 端点 + `from-github` Phase 2 占位;错误分类 `NO_CREDENTIAL / AUTH_FAILED / AUTH_FORBIDDEN / NETWORK_UNREACHABLE / TIMEOUT / DISK_FULL / GIT_NOT_FOUND` → 落地 `clone_error_message`(commit hash 待主 session 补)
 - ✅ **§6.2 首次登录改密码**:POST `/api/auth/change-password` + `/me` 个人中心 + 密码强度校验(`7e3ac05`)
 - ✅ **§6.2 真 JWT 解码 + 角色门禁**:`@nestjs/passport` PassportStrategy 验签 → `JwtAuthGuard` 全 controller 拦截 → `RolesGuard` + `@Roles('admin')` 拦截 AI Key / Git Credentials / Proxy / Users 写端点;`req.user` 从 `x-user-id` 头 mock 改成 JWT payload(`sub` / `role`);`@CurrentUser()` decorator 注入
 - ✅ **§11 Q6 并发扫描升级到 BullMQ + Redis**:从 in-memory FIFO 升到真 BullMQ + Redis(进程崩溃可恢复 + 分布式 worker),本机 docker run redis:7-alpine 容器跑通(`e3bbe96` in-memory + `583ff18` BullMQ)
+- ✅ **§11 Q7 双轨 C — 多 Skill Bundle 并存 + 用最新 Skill 重扫**:schema 加 `is_default` / `published_at` 字段(`0004_skill_bundle_default.sql` 迁移);`SkillBundlesService` 扩 `listAll / listActive / getDefault / setDefault(事务原子) / publish / getById`;新增 `POST /api/scan-runs/:id/replay-with-latest` 端点 + `ScanService.replayWithLatest()`(不绑原 run 的 bundle,改拿 `getDefault()`,无默认 → NotFoundException);前端 Scans 列表加 `Replay (Latest Skill)` 按钮(`data-testid="replay-with-latest"`) + ScanPage 加同名按钮
 - ✅ **CI/CD pipeline**:`.github/workflows/ci.yml` 8 step,Node 20 + pnpm cache + `--frozen-lockfile` + upload coverage artifact(`01ed2d5`)
 - ✅ **需求文档前后统一**:消除 §1.2 / §2.1 / §4.2.5 / §5.4 / §2.5 等 10 处前后不一致(`7b6e018`)
 - ✅ **Versions tab 清理**:ProjectDetailPage 删 "Phase 2 · §5.2" 占位 tab(信息已在 Scans tab 内嵌)(`982730e`)
@@ -218,7 +220,7 @@ pnpm --filter @platform/api seed
 | **Bull-Board 接入(队列可视化)** | 2-3 小时 | 队列可观测 | 进行中(O agent) |
 | **Vitest coverage provider 上线** | 1 小时 | 覆盖率可见 | 进行中(P agent) |
 | Docker 化部署(§11 Q11 Phase 4) | 1-2 天 | 部署简化 | 待办 |
-| 多 Skill Bundle 并存(§11 Q7 双轨 C) | 1 天 | Skill 升级红利 | 待办 |
+| 多 Skill Bundle 并存(§11 Q7 双轨 C) | 1 天 | Skill 升级红利 | ✅ 已落地(is_default / published_at 字段 + setDefault 事务原子 + replay-with-latest 端点 + 33 个新单测) |
 | §5.7 真正接 git 凭证(目前只 UI,不实际 clone) | 1 天 | §5.7 真闭环 | 待办 |
 
 ## 已知遗留(不阻塞)
@@ -227,7 +229,7 @@ pnpm --filter @platform/api seed
 - ~~ProjectDetailPage Versions tab 显示 "Phase 2"~~:`982730e` 已删(Versions 信息在 Scans tab 内嵌)
 - ~~2 个 pre-existing lint 警告~~(`settings.service.ts` + `users.service.ts` 的 `node:crypto` import/order):`982730e` 已修;仓库 lint 真正 0 错 0 警
 - ~~`.gitignore` 加 `*.tsbuildinfo` + 取消 tracking `tsconfig.tsbuildinfo`~~:`20edc44` 已做
-- §5.7 git 凭证目前只 UI CRUD,未实际接 git clone(`/api/admin/git-credentials` 端点只做 CRUD,没 git fetch / clone 集成);Phase 2 接
+- ~~§5.7 git 凭证只 UI CRUD,未实际接 git clone~~:已真接,见上"已落地功能"
 - `apps/api/storage/scan-runs/<id>/` 落盘目录结构当前没真 skill 产物(`route_mapping/` / `framework_audit/` 来自 fixture 测试;真 scan 跑完只有 `quality/scan_summary.json`);Phase 2 skill 真产出后自动补齐
 - BullMQ + Redis 部分打破 §11 Q11 "本地部署 / 无 Docker" 锁定:Redis 是 BullMQ 硬依赖,本机需 docker run redis 或装 Redis 服务;Phase 4 可考虑回退 `better-queue`
 - 当前 Bull-Board 未接入(Task O 进行中):队列可视化要等 O 完成
