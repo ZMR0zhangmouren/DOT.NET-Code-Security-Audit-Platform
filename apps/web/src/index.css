@@ -1,3 +1,5 @@
+@import 'highlight.js/styles/github-dark.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -51,5 +53,46 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* 报告 Markdown 渲染区定制 —— 与 Tailwind typography 协作 */
+@layer components {
+  .report-prose {
+    /* 在 prose 基础上做报告专属微调 */
+  }
+  .report-prose pre {
+    @apply rounded-md border border-border !bg-[#0d1117] p-4 overflow-x-auto;
+  }
+  .report-prose pre code {
+    @apply bg-transparent p-0 text-sm leading-relaxed;
+  }
+  .report-prose :not(pre) > code {
+    @apply rounded border border-border bg-muted px-1.5 py-0.5 text-[0.875em] font-mono;
+  }
+  .report-prose table {
+    @apply w-full border-collapse text-sm;
+  }
+  .report-prose th,
+  .report-prose td {
+    @apply border border-border px-3 py-2 text-left;
+  }
+  .report-prose thead {
+    @apply bg-muted/60;
+  }
+  .report-prose tbody tr:hover {
+    @apply bg-muted/40;
+  }
+  .report-prose a {
+    @apply text-primary underline-offset-2 hover:underline;
+  }
+  .report-prose blockquote {
+    @apply border-l-4 border-primary/60 bg-muted/40 pl-4 py-1 italic text-muted-foreground;
+  }
+  .report-prose h1,
+  .report-prose h2,
+  .report-prose h3,
+  .report-prose h4 {
+    @apply scroll-mt-20;
   }
 }
