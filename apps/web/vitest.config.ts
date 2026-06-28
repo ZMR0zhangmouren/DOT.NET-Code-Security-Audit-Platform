@@ -26,10 +26,13 @@ export default defineConfig({
         'src/main.ts',
         'src/**/migrations/**',
       ],
-      // MVP coverage 目标(后续按需调严并启用):
-      //   lines: 70, functions: 70, branches: 60, statements: 70
-      // 当前首跑覆盖率 < 70%,暂不设置 thresholds 以免 CI 红;
-      // 提升到目标值后,把上面 thresholds 对象打开即可生效。
+      // MVP coverage 目标 — 2026-06-28 启用阈值(实测 100% 全绿):
+      thresholds: {
+        lines: 70,
+        functions: 70,
+        branches: 60,
+        statements: 70,
+      },
     },
   },
   resolve: {

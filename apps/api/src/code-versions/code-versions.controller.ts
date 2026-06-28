@@ -34,6 +34,13 @@ interface UploadMetaDto {
   parentVersionId?: string;
 }
 
+interface FromGitDto {
+  projectId: string;
+  label: string;
+  sourceRef: string;
+  hostPattern?: string;
+}
+
 /**
  * §5.2 CodeVersion 上传 + 列表 + 详情
  *
@@ -98,6 +105,38 @@ export class CodeVersionsController {
   @Get('code-versions/:id')
   get(@Param('id') id: string): CodeVersionPublic {
     return this.cv.get(id);
+  }
+
+  /**
+   * §5.7 真接 git clone —— 从 git URL 拉取
+   * body: { projectId, label, sourceRef, hostPattern? }
+   */
+  @Post('code-versions/from-git')
+  fromGit(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: FromGitDto,
+  ): Promise<CodeVersionPublic> {
+    if (!body?.projectId) throw new BadRequestException('projectId is required');
+    if (!body?.label?.trim()) throw new BadRequestException('label is required');
+    if (!body?.sourceRef?.trim()) throw new BadRequestException('sourceRef is required');
+    const uploadedBy = user?.sub ?? 'unknown';
+    return this.cv.createFromGit({
+      projectId: body.projectId,
+      label: body.label,
+      sourceRef: body.sourceRef,
+      hostPattern: body.hostPattern,
+      uploadedBy,
+    });
+  }
+
+  /**
+   * §5.7 Phase 2 占位 —— 从 GitHub API 拉(暂未实现,留接口)
+   */
+  @Post('code-versions/from-github')
+  fromGithub(@CurrentUser() _user: AuthenticatedUser, @Body() _body: unknown): never {
+    void _user;
+    void _body;
+    throw new BadRequestException('from-github 尚未实现(Phase 2)');
   }
 }
 

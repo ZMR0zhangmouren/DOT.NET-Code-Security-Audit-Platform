@@ -10,6 +10,8 @@ import type { Entry as YauzlEntry } from 'yauzl';
 import { DATABASE, type Db } from '../db/database.module.js';
 import { codeVersions, projects } from '../db/schema.js';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { GitCloneService, GitCloneError } from '../git-clone/git-clone.service.js'; // runtime ref (NestJS DI)
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { StorageService } from '../storage/storage.service.js'; // runtime ref (NestJS DI)
 
 /** Q4:单 zip 500MB 上限 */
@@ -31,6 +33,8 @@ export interface CodeVersionPublic {
   uploadedAt: number;
   checksum: string;
   extractedPath: string;
+  clonedAt: number | null;
+  cloneErrorMessage: string | null;
 }
 
 interface CodeVersionRow {
@@ -46,6 +50,8 @@ interface CodeVersionRow {
   uploadedBy: string;
   uploadedAt: number;
   checksum: string;
+  clonedAt: number | null;
+  cloneErrorMessage: string | null;
 }
 
 @Injectable()
@@ -53,6 +59,7 @@ export class CodeVersionsService {
   constructor(
     @Inject(DATABASE) private readonly db: Db,
     private readonly storage: StorageService,
+    private readonly gitClone: GitCloneService,
   ) {}
 
   /**
@@ -173,7 +180,94 @@ export class CodeVersionsService {
       uploadedAt: r.uploadedAt,
       checksum: r.checksum,
       extractedPath: this.storage.codeVersionDir(r.id),
+      clonedAt: r.clonedAt,
+      cloneErrorMessage: r.cloneErrorMessage,
     };
+  }
+
+  /**
+   * §5.7 真接 git clone —— 创建一条 sourceType='git' 的 code_versions,
+   * 调 GitCloneService.cloneRepo,失败时把 message 落到 cloneErrorMessage。
+   *
+   * 成功路径:产物落在 storage/code-versions/{cvId}/,后续 Scan 流程无差异(都用 extractedPath)
+   * 失败路径:row 保留(clonedAt=null, cloneErrorMessage 写入),前端可见
+   */
+  async createFromGit(input: {
+    projectId: string;
+    label: string;
+    sourceRef: string;
+    hostPattern?: string;
+    uploadedBy: string;
+  }): Promise<CodeVersionPublic> {
+    if (!input.label?.trim()) throw new BadRequestException('label is required');
+    if (!input.sourceRef?.trim()) throw new BadRequestException('sourceRef is required');
+
+    // 1. 项目存在性校验
+    const project = this.db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.id, input.projectId))
+      .get();
+    if (!project) throw new NotFoundException(`project ${input.projectId} not found`);
+
+    // 2. 占位 row(先有 id 才能算 destDir)
+    const cvId = `cv-${Date.now().toString(36)}-${randomHex(4)}`;
+    const destDir = this.storage.codeVersionDir(cvId);
+    const now = Date.now();
+
+    this.db
+      .insert(codeVersions)
+      .values({
+        id: cvId,
+        projectId: input.projectId,
+        versionLabel: input.label.trim(),
+        sourceType: 'git',
+        sourceRef: input.sourceRef.trim(),
+        fileCount: null,
+        locCount: null,
+        sizeBytes: null,
+        parentVersionId: null,
+        uploadedBy: input.uploadedBy,
+        uploadedAt: now,
+        checksum: `pending-${cvId}`, // 临时,克隆成功后会被覆盖
+        clonedAt: null,
+        cloneErrorMessage: null,
+      })
+      .run();
+
+    // 3. 调 gitCloneService
+    try {
+      const r = await this.gitClone.cloneRepo({
+        sourceType: 'git',
+        sourceRef: input.sourceRef,
+        hostPattern: input.hostPattern,
+        destDir,
+        projectId: input.projectId,
+      });
+      this.db
+        .update(codeVersions)
+        .set({
+          fileCount: r.fileCount,
+          locCount: r.locCount,
+          sizeBytes: r.sizeBytes,
+          checksum: r.checksum,
+          clonedAt: r.clonedAt,
+          cloneErrorMessage: null,
+        })
+        .where(eq(codeVersions.id, cvId))
+        .run();
+    } catch (e) {
+      const msg =
+        e instanceof GitCloneError ? `[${e.code}] ${e.message}` : String((e as Error).message);
+      this.db
+        .update(codeVersions)
+        .set({ cloneErrorMessage: msg })
+        .where(eq(codeVersions.id, cvId))
+        .run();
+      // 重新抛 BadRequestException,前端能拿到 4xx + message
+      throw new BadRequestException(`git clone failed: ${msg}`);
+    }
+    return this.get(cvId);
   }
 }
 
