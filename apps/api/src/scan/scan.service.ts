@@ -208,6 +208,36 @@ export class ScanService {
   }
 
   /**
+   * §11 Q7 双轨 C —— "用最新 Skill 重扫"
+   *
+   * - 不复用原 run 的 skill_bundle_id,而是调 defaultBundleProvider() 拿当前默认
+   * - 默认 bundle 不存在 → 抛 NotFoundException
+   * - 创建新 ScanRun,triggerType = 'replay'(沿用,跟原 replay 区分在 service 层用 skillBundleId 区分)
+   *
+   * defaultBundleProvider:延迟注入,避免循环依赖(默认注 SkillBundlesService.getDefault)
+   */
+  async replayWithLatest(
+    id: string,
+    defaultBundleProvider: () => { id: string } | null,
+  ): Promise<ScanRunPublic> {
+    const orig = this.get(id);
+    const defaultBundle = defaultBundleProvider();
+    if (!defaultBundle) {
+      throw new NotFoundException(
+        'no default skill bundle set; set one via POST /api/skill-bundle-versions/:id/set-default first',
+      );
+    }
+    return this.create({
+      projectId: orig.projectId,
+      codeVersionId: orig.codeVersionId,
+      skillBundleId: defaultBundle.id,
+      triggerType: 'replay',
+      triggeredBy: orig.triggeredBy,
+      coverageMode: orig.coverageMode,
+    });
+  }
+
+  /**
    * §5.3 API 覆盖统计 —— 重新计算并写回 scanRuns 三个字段。
    *
    * 不跑 agent,只读 outputRoot 下的 route_mapping/ + framework_audit/ 产物

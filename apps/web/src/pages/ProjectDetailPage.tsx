@@ -67,6 +67,8 @@ export default function ProjectDetailPage(): React.ReactElement {
   const [showCompare, setShowCompare] = useState(false);
   const [compareA, setCompareA] = useState<string>('');
   const [compareB, setCompareB] = useState<string>('');
+  // §11 Q7 双轨 C —— 记录正在 replay-with-latest 的 run id
+  const [replayingId, setReplayingId] = useState<string | null>(null);
 
   // Members tab 状态(§4.2.8)
   const [members, setMembers] = useState<ProjectMember[]>([]);
@@ -175,6 +177,21 @@ export default function ProjectDetailPage(): React.ReactElement {
   function onCreatedRun(run: ScanRunPublic): void {
     setShowNewScan(false);
     navigate(`/projects/${id}/scans/${run.id}`);
+  }
+
+  // §11 Q7 双轨 C —— 用最新 Skill 重扫
+  async function onReplayWithLatest(runId: string): Promise<void> {
+    if (!id) return;
+    setReplayingId(runId);
+    try {
+      const fresh = await api.post<ScanRunPublic>(`/scan-runs/${runId}/replay-with-latest`);
+      // 跳到新 ScanRun 的实时页
+      navigate(`/projects/${id}/scans/${fresh.id}`);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : (e as Error).message);
+    } finally {
+      setReplayingId(null);
+    }
   }
 
   return (
@@ -569,14 +586,27 @@ export default function ProjectDetailPage(): React.ReactElement {
                                 : new Date(r.queuedAt).toLocaleString()}
                             </td>
                             <td className="p-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => navigate(`/projects/${id}/scans/${r.id}`)}
-                                data-testid="scans-open"
-                              >
-                                Open
-                              </Button>
+                              <div className="flex flex-wrap gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => navigate(`/projects/${id}/scans/${r.id}`)}
+                                  data-testid="scans-open"
+                                >
+                                  Open
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={replayingId === r.id}
+                                  onClick={() => {
+                                    void onReplayWithLatest(r.id);
+                                  }}
+                                  data-testid="replay-with-latest"
+                                >
+                                  {replayingId === r.id ? 'Replaying...' : 'Replay (Latest Skill)'}
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         );

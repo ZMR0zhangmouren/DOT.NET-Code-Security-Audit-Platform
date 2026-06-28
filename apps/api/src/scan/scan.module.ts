@@ -5,6 +5,7 @@ import type { ConnectionOptions } from 'bullmq';
 import { AuthModule } from '../auth/auth.module.js';
 import { DatabaseModule } from '../db/database.module.js';
 import { RealtimeModule } from '../realtime/realtime.module.js';
+import { SkillBundlesModule } from '../skill-bundles/skill-bundles.module.js';
 import { StorageModule } from '../storage/storage.module.js';
 import { VulnsModule } from '../vulns/vulns.module.js';
 
@@ -33,6 +34,7 @@ function readRedisConnection(): ConnectionOptions {
     RealtimeModule,
     VulnsModule,
     AuthModule,
+    SkillBundlesModule,
     BullModule.forRoot({
       connection: readRedisConnection(),
     }),

@@ -484,6 +484,83 @@ describe('ScanService (mocked DB)', () => {
     expect(fakeDb.rows['scan_runs']).toHaveLength(2);
   });
 
+  // ──────────────────────────────────────────────────────────────────────
+  // §11 Q7 双轨 C —— replayWithLatest
+  // ──────────────────────────────────────────────────────────────────────
+
+  it('replayWithLatest:用 default bundle 而不是原 run 的 bundle', async () => {
+    const fakeDb = createFakeDb();
+    seed(fakeDb, { withRun: true });
+    // 准备一个 sbv-latest-default 的 active bundle
+    fakeDb.rows['skill_bundle_versions']!.push({
+      id: 'sbv-latest-default',
+      version: 'v2.0.0',
+      gitCommit: 'def456',
+      snapshotPath: '/tmp/bundle-latest',
+      isActive: true,
+      isDefault: true,
+      note: null,
+      createdAt: 2,
+    });
+    const enqueue = vi.fn(() => ({ position: 0, running: 1, maxConcurrent: 2 }));
+    const cancel = vi.fn();
+    const storage = { scanRunOutputRoot: (id: string) => `/tmp/${id}` };
+
+    const mod = await import('./scan.service.js');
+    const svc = new mod.ScanService(
+      fakeDb as never,
+      { enqueue } as never,
+      { cancel } as never,
+      storage as never,
+    );
+    const replayed = await svc.replayWithLatest('scan-1', () => ({ id: 'sbv-latest-default' }));
+    expect(replayed.triggerType).toBe('replay');
+    expect(replayed.skillBundleId).toBe('sbv-latest-default');
+    expect(replayed.skillBundleId).not.toBe('sb-1'); // 跟原 run 不一样
+    expect(replayed.id).not.toBe('scan-1');
+    expect(fakeDb.rows['scan_runs']).toHaveLength(2);
+  });
+
+  it('replayWithLatest:default bundle 不存在 → NotFoundException', async () => {
+    const fakeDb = createFakeDb();
+    seed(fakeDb, { withRun: true });
+    const enqueue = vi.fn(() => ({ position: 0, running: 1, maxConcurrent: 2 }));
+    const cancel = vi.fn();
+    const storage = { scanRunOutputRoot: (id: string) => `/tmp/${id}` };
+
+    const mod = await import('./scan.service.js');
+    const svc = new mod.ScanService(
+      fakeDb as never,
+      { enqueue } as never,
+      { cancel } as never,
+      storage as never,
+    );
+    await expect(svc.replayWithLatest('scan-1', () => null)).rejects.toThrow(
+      /no default skill bundle set/,
+    );
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('replayWithLatest:原 run 不存在 → NotFoundException', async () => {
+    const fakeDb = createFakeDb();
+    seed(fakeDb, { withRun: false });
+    const enqueue = vi.fn();
+    const cancel = vi.fn();
+    const storage = { scanRunOutputRoot: (id: string) => `/tmp/${id}` };
+
+    const mod = await import('./scan.service.js');
+    const svc = new mod.ScanService(
+      fakeDb as never,
+      { enqueue } as never,
+      { cancel } as never,
+      storage as never,
+    );
+    await expect(svc.replayWithLatest('scan-missing', () => ({ id: 'sb-1' }))).rejects.toThrow(
+      /scanRun scan-missing not found/,
+    );
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
   it('recomputeCoverage:写回 scanRuns 三个覆盖字段', async () => {
     const fakeDb = createFakeDb();
     seed(fakeDb, { withRun: true });

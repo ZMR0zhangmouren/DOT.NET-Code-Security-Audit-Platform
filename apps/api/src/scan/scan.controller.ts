@@ -4,6 +4,8 @@ import type { CoverageMode } from '@platform/shared';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { AuthenticatedUser } from '../auth/jwt.strategy.js';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { SkillBundlesService } from '../skill-bundles/skill-bundles.service.js'; // 运行时引用
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ScanService, type ScanRunPublic } from './scan.service.js'; // 运行时引用
@@ -26,7 +28,10 @@ interface CreateScanDto {
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class ScanController {
-  constructor(private readonly scan: ScanService) {}
+  constructor(
+    private readonly scan: ScanService,
+    private readonly skillBundles: SkillBundlesService,
+  ) {}
 
   @Post('scan-runs')
   async create(
@@ -62,6 +67,18 @@ export class ScanController {
   @Post('scan-runs/:id/replay')
   async replay(@Param('id') id: string): Promise<ScanRunPublic> {
     return this.scan.replay(id);
+  }
+
+  /**
+   * §11 Q7 双轨 C —— "用最新 Skill 重扫" 显式按钮
+   * 不复用原 run 的 skill_bundle_id,而是拿 SkillBundlesService.getDefault() 的当前默认
+   */
+  @Post('scan-runs/:id/replay-with-latest')
+  async replayWithLatest(@Param('id') id: string): Promise<ScanRunPublic> {
+    return this.scan.replayWithLatest(id, () => {
+      const def = this.skillBundles.getDefault();
+      return def ? { id: def.id } : null;
+    });
   }
 
   @Post('scan-runs/:id/recompute-coverage')

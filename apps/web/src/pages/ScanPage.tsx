@@ -23,7 +23,7 @@ export default function ScanPage(): React.ReactElement {
   const [run, setRun] = useState<ScanRunPublic | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [acting, setActing] = useState<'cancel' | 'replay' | null>(null);
+  const [acting, setActing] = useState<'cancel' | 'replay' | 'replay-with-latest' | null>(null);
 
   const { status: wsStatus, logs, lastProgress, poke } = useScanSocket(runId ?? null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
@@ -82,6 +82,19 @@ export default function ScanPage(): React.ReactElement {
     try {
       const fresh = await api.post<ScanRunPublic>(`/scan-runs/${runId}/replay`);
       // 跳到新的 ScanRun
+      navigate(`/projects/${projectId ?? fresh.projectId}/scans/${fresh.id}`);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : (e as Error).message);
+      setActing(null);
+    }
+  }
+
+  // §11 Q7 双轨 C —— 用最新 Skill 重扫
+  async function onReplayWithLatest(): Promise<void> {
+    if (!runId) return;
+    setActing('replay-with-latest');
+    try {
+      const fresh = await api.post<ScanRunPublic>(`/scan-runs/${runId}/replay-with-latest`);
       navigate(`/projects/${projectId ?? fresh.projectId}/scans/${fresh.id}`);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : (e as Error).message);
@@ -210,6 +223,18 @@ export default function ScanPage(): React.ReactElement {
                 data-testid="scan-replay"
               >
                 {acting === 'replay' ? 'Replaying...' : 'Re-run (Replay)'}
+              </Button>
+            )}
+            {isTerminal && (
+              <Button
+                variant="outline"
+                disabled={acting === 'replay-with-latest'}
+                onClick={() => {
+                  void onReplayWithLatest();
+                }}
+                data-testid="scan-replay-with-latest"
+              >
+                {acting === 'replay-with-latest' ? 'Replaying...' : 'Replay (Latest Skill)'}
               </Button>
             )}
             <Button
