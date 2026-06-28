@@ -2,6 +2,8 @@ import { Controller, Get, Inject } from '@nestjs/common';
 import { COVERAGE_MODE } from '@platform/shared';
 
 import { DATABASE, type Db } from '../db/database.module.js';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ScanQueueService } from '../scan/scan-queue.service.js'; // runtime ref (NestJS DI)
 
 /**
  * 健康检查端点 —— 验证 nest 启动 + SQLite 可用。
@@ -9,7 +11,10 @@ import { DATABASE, type Db } from '../db/database.module.js';
  */
 @Controller('health')
 export class HealthController {
-  constructor(@Inject(DATABASE) private readonly db: Db) {}
+  constructor(
+    @Inject(DATABASE) private readonly db: Db,
+    private readonly scanQueue: ScanQueueService,
+  ) {}
 
   @Get()
   check(): {
@@ -18,6 +23,9 @@ export class HealthController {
     coverageModeDefault: (typeof COVERAGE_MODE)[number];
     nodeVersion: string;
     dbTables: number;
+    queueDepth: number;
+    queueRunning: number;
+    queueMaxConcurrent: number;
   } {
     const rows = this.db.all<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
@@ -28,6 +36,9 @@ export class HealthController {
       coverageModeDefault: COVERAGE_MODE[0],
       nodeVersion: process.version,
       dbTables: rows.length,
+      queueDepth: this.scanQueue.getQueueDepth(),
+      queueRunning: this.scanQueue.getRunningCount(),
+      queueMaxConcurrent: this.scanQueue.getMaxConcurrent(),
     };
   }
 }

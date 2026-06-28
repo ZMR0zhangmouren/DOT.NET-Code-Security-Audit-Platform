@@ -17,6 +17,8 @@ import { codeVersions, projects, scanRuns, skillBundleVersions } from '../db/sch
 import { StorageService } from '../storage/storage.service.js'; // runtime ref (NestJS DI)
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ScanQueueService } from './scan-queue.service.js'; // runtime ref (NestJS DI)
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ScanRunnerService } from './scan-runner.service.js'; // runtime ref (NestJS DI)
 
 export interface ScanRunPublic {
@@ -38,6 +40,8 @@ export interface ScanRunPublic {
   apiCoverageStatus: ApiCoverageStatus;
   pipelineExecution: PipelineExecution;
   gateDecision: GateDecision;
+  controllerCoveragePercent: number | null;
+  authCoveragePercent: number | null;
   outputRoot: string;
 }
 
@@ -62,6 +66,8 @@ interface ScanRunRow {
   apiCoverageStatus: ApiCoverageStatus;
   pipelineExecution: PipelineExecution;
   gateDecision: GateDecision;
+  controllerCoveragePercent: number | null;
+  authCoveragePercent: number | null;
   outputRoot: string;
 }
 
@@ -69,6 +75,7 @@ interface ScanRunRow {
 export class ScanService {
   constructor(
     @Inject(DATABASE) private readonly db: Db,
+    private readonly queue: ScanQueueService,
     private readonly runner: ScanRunnerService,
     private readonly storage: StorageService,
   ) {}
@@ -130,12 +137,14 @@ export class ScanService {
         apiCoverageStatus: 'NOT_RUN',
         pipelineExecution: 'NOT_RUN',
         gateDecision: 'PENDING',
+        controllerCoveragePercent: null,
+        authCoveragePercent: null,
         outputRoot,
       })
       .run();
 
-    // 异步触发,不等完成
-    this.runner.kickoff(id);
+    // §11 Q6 —— 通过 ScanQueueService 入队(进程内队列,worker pool 调度)
+    this.queue.enqueue(id);
 
     return this.get(id);
   }
@@ -204,6 +213,8 @@ export class ScanService {
       apiCoverageStatus: r.apiCoverageStatus,
       pipelineExecution: r.pipelineExecution,
       gateDecision: r.gateDecision,
+      controllerCoveragePercent: r.controllerCoveragePercent,
+      authCoveragePercent: r.authCoveragePercent,
       outputRoot: r.outputRoot,
     };
   }

@@ -55,13 +55,23 @@ export class ScanRunnerService implements OnModuleDestroy {
     }
   }
 
-  /** 异步触发一次扫描(立即返回,内部 setImmediate 启动) */
-  kickoff(scanRunId: string): void {
-    setImmediate(() => {
-      this.runScan(scanRunId).catch((e: unknown) => {
-        const msg = e instanceof Error ? e.message : String(e);
-        this.logger.error(`scan ${scanRunId} crashed: ${msg}`);
-        this.markFailed(scanRunId, msg);
+  /**
+   * 异步触发一次扫描;返回 Promise 在扫描结束(succeeded/failed/canceled)时 resolve。
+   * 内部使用 setImmediate 启动,不在事件循环同步段阻塞。
+   * §5.3 + §11 Q6 —— ScanQueueService 通过 await 这个 Promise 知道 worker 完成,可以派发下一个。
+   */
+  kickoff(scanRunId: string): Promise<void> {
+    return new Promise<void>((resolve) => {
+      setImmediate(() => {
+        this.runScan(scanRunId)
+          .catch((e: unknown) => {
+            const msg = e instanceof Error ? e.message : String(e);
+            this.logger.error(`scan ${scanRunId} crashed: ${msg}`);
+            this.markFailed(scanRunId, msg);
+          })
+          .finally(() => {
+            resolve();
+          });
       });
     });
   }

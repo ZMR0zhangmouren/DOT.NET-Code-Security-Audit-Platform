@@ -9,17 +9,34 @@ vi.mock('../db/database.module.js', () => ({
   Db: class {} as any,
 }));
 
+// Mock scan-queue 以避开 ESM 循环(ScanQueueService → ScanRunnerService → drizzle/storage)
+vi.mock('../scan/scan-queue.service.js', () => ({
+  ScanQueueService: class {
+    getQueueDepth = () => 0;
+    getRunningCount = () => 0;
+    getMaxConcurrent = () => 2;
+  },
+}));
+
 describe('HealthController (mocked DB)', () => {
   it('check() 返回 ok 状态与 db 表数', async () => {
     const mod = await import('./health.controller.js');
     const fakeDb = {
       all: () => [{ name: 'projects' }, { name: 'users' }, { name: 'scan_runs' }],
     };
-    const controller = new mod.HealthController(fakeDb as never);
+    const fakeQueue = {
+      getQueueDepth: () => 5,
+      getRunningCount: () => 2,
+      getMaxConcurrent: () => 2,
+    };
+    const controller = new mod.HealthController(fakeDb as never, fakeQueue as never);
     const result = controller.check();
     expect(result.status).toBe('ok');
     expect(result.dbTables).toBe(3);
     expect(result.coverageModeDefault).toBe('FULL');
     expect(result.nodeVersion).toMatch(/^v\d+\.\d+\.\d+/);
+    expect(result.queueDepth).toBe(5);
+    expect(result.queueRunning).toBe(2);
+    expect(result.queueMaxConcurrent).toBe(2);
   });
 });
