@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import ProjectMembersSection from '@/components/ProjectMembersSection';
 import ScanRunNewDialog from '@/components/ScanRunNewDialog';
 import UploadDropzone from '@/components/UploadDropzone';
 import { Button } from '@/components/ui/button';
@@ -24,7 +25,19 @@ interface Project {
   updatedAt: number;
 }
 
-type Tab = 'overview' | 'scans';
+type Tab = 'overview' | 'scans' | 'members';
+
+type ProjectMemberRole = 'lead' | 'contributor' | 'viewer';
+
+interface ProjectMember {
+  userId: string;
+  username: string;
+  email: string;
+  displayName: string | null;
+  projectRole: ProjectMemberRole;
+  grantedBy: string;
+  grantedAt: number;
+}
 
 /**
  * §9 路由 /projects/:id —— 项目详情 + 编辑/删除 + Scans tab
@@ -50,6 +63,11 @@ export default function ProjectDetailPage(): React.ReactElement {
   const [scansLoading, setScansLoading] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [showNewScan, setShowNewScan] = useState(false);
+
+  // Members tab 状态(§4.2.8)
+  const [members, setMembers] = useState<ProjectMember[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
 
   async function refresh(): Promise<void> {
     if (!id) return;
@@ -86,6 +104,19 @@ export default function ProjectDetailPage(): React.ReactElement {
     }
   }, [id]);
 
+  const refreshMembers = useCallback(async (): Promise<void> => {
+    if (!id) return;
+    setMembersLoading(true);
+    try {
+      const list = await api.get<ProjectMember[]>(`/projects/${id}/members`);
+      setMembers(list);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : (e as Error).message);
+    } finally {
+      setMembersLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -94,8 +125,10 @@ export default function ProjectDetailPage(): React.ReactElement {
   useEffect(() => {
     if (tab === 'scans') {
       void refreshScans();
+    } else if (tab === 'members') {
+      void refreshMembers();
     }
-  }, [tab, refreshScans]);
+  }, [tab, refreshScans, refreshMembers]);
 
   async function onSave(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
@@ -287,13 +320,31 @@ export default function ProjectDetailPage(): React.ReactElement {
                 §5.3
               </span>
             </button>
-            <span
-              className="inline-flex items-center gap-1 rounded px-3 py-1 text-sm text-muted-foreground"
+            <Link
+              to={`/projects/${id}/vuln-library`}
+              className="inline-flex items-center gap-1 rounded px-3 py-1 text-sm text-muted-foreground hover:bg-muted"
+              data-testid="tab-vuln-library"
+            >
+              Vuln Library
+              <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] text-primary">
+                §5.5
+              </span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setTab('members')}
+              className={
+                tab === 'members'
+                  ? 'inline-flex items-center gap-1 rounded-t border-b-2 border-primary bg-card px-3 py-1 text-sm font-medium'
+                  : 'inline-flex items-center gap-1 rounded px-3 py-1 text-sm text-muted-foreground hover:bg-muted'
+              }
               data-testid="tab-members"
             >
               Members
-              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">Phase 2 · §4.2.8</span>
-            </span>
+              <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] text-primary">
+                §4.2.8
+              </span>
+            </button>
           </nav>
 
           {tab === 'overview' && (
@@ -459,6 +510,40 @@ export default function ProjectDetailPage(): React.ReactElement {
                 </div>
               )}
             </section>
+          )}
+
+          {tab === 'members' && (
+            <ProjectMembersSection
+              projectId={id!}
+              members={members}
+              loading={membersLoading}
+              showAdd={showAddMember}
+              onShowAdd={() => setShowAddMember(true)}
+              onCancelAdd={() => setShowAddMember(false)}
+              onAdded={() => {
+                setShowAddMember(false);
+                void refreshMembers();
+              }}
+              onRoleChange={async (userId, newRole) => {
+                try {
+                  await api.patch(`/projects/${id}/members/${userId}`, {
+                    projectRole: newRole,
+                  });
+                  void refreshMembers();
+                } catch (e) {
+                  setErr(e instanceof ApiError ? e.message : (e as Error).message);
+                }
+              }}
+              onRevoke={async (userId, username) => {
+                if (!confirm(`Revoke member "${username}" from this project?`)) return;
+                try {
+                  await api.delete(`/projects/${id}/members/${userId}`);
+                  void refreshMembers();
+                } catch (e) {
+                  setErr(e instanceof ApiError ? e.message : (e as Error).message);
+                }
+              }}
+            />
           )}
         </>
       )}
