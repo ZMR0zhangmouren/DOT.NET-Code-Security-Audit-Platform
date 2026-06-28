@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# 同分支新 push 自动取消旧 run —— 节省 CI 配额
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-lint:
+    name: Typecheck / Test / Lint
+    runs-on: ubuntu-latest
+    # 单一 Node 版本矩阵:CLAUDE.md 锁定 Node 20 LTS 为最小版本,
+    # 本机 24.14.1 已验证 OK,但 CI 跑最小版本可尽早暴露兼容性问题。
+    env:
+      CI: 'true'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # cache: 'pnpm' 自动按 pnpm-lock.yaml 缓存 ~/.local/share/pnpm/store
+          # 与 pnpm/action-setup 配合时只需一处声明 cache
+          cache: 'pnpm'
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (all workspaces)
+        run: pnpm -r typecheck
+
+      - name: Test (all workspaces)
+        run: pnpm -r test
+
+      - name: Lint + Prettier check
+        run: pnpm lint
+
+      # 可选:coverage 上传。当前 vitest 配置未启用 coverage provider,
+      # 此步骤仅在 ./coverage/ 目录存在时执行,后续若在 vitest.config 接入
+      # @vitest/coverage-v8,可自动启用。
+      - name: Upload coverage report
+        if: hashFiles('./coverage/**') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.run_id }}
+          path: coverage/
+          retention-days: 7
+          if-no-files-found: ignore
