@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { AdminModule } from './admin/admin.module.js';
 import { AgentsModule } from './agents/agents.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CodeVersionsModule } from './code-versions/code-versions.module.js';
@@ -41,6 +42,7 @@ import { VulnsModule } from './vulns/vulns.module.js';
     SettingsModule,
     AgentsModule,
     RealtimeModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

@@ -49,6 +49,15 @@ export class ScanQueueService implements OnModuleInit, OnModuleDestroy {
   constructor(@InjectQueue(SCAN_QUEUE_NAME) private readonly queue: Queue<ScanJobData>) {}
 
   /**
+   * 暴露底层 BullMQ Queue 引用(§11 Q6 Phase 2.5 给 Bull-Board 观察用)。
+   * main.ts 在 bootstrap 时调 attachQueue() 把这个 Queue 包成 BullMQAdapter 挂上 dashboard。
+   * 不暴露 add/close 之类写操作 —— Bull-Board 是只读观察面。
+   */
+  getQueue(): Queue<ScanJobData> {
+    return this.queue;
+  }
+
+  /**
    * 在 module init 时由外部 caller 显式调一次(扫到不依赖 process.env 副作用)。
    * 兼容老的 in-memory 调用:`q.onModuleInit()`。
    */
