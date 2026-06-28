@@ -13,6 +13,7 @@ import { SettingsModule } from './settings/settings.module.js';
 import { SkillBundlesModule } from './skill-bundles/skill-bundles.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { UsersModule } from './users/users.module.js';
+import { VulnsModule } from './vulns/vulns.module.js';
 
 /**
  * 根模块。
@@ -35,6 +36,7 @@ import { UsersModule } from './users/users.module.js';
     ScanModule,
     SkillBundlesModule,
     ReportModule,
+    VulnsModule,
     UsersModule,
     SettingsModule,
     AgentsModule,

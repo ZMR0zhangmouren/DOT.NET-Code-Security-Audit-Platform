@@ -15,6 +15,7 @@ import { DATABASE, type Db } from '../db/database.module.js';
 import { codeVersions, projects, scanRuns, skillBundleVersions } from '../db/schema.js';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { StorageService } from '../storage/storage.service.js'; // runtime ref (NestJS DI)
+
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ScanRunnerService } from './scan-runner.service.js'; // runtime ref (NestJS DI)
 

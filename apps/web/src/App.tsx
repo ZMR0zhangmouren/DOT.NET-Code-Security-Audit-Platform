@@ -8,6 +8,7 @@ import ProjectDetailPage from '@/pages/ProjectDetailPage';
 import ProjectsPage from '@/pages/ProjectsPage';
 import ReportPage from '@/pages/ReportPage';
 import ScanPage from '@/pages/ScanPage';
+import VulnLibraryDetailPage from '@/pages/VulnLibraryDetailPage';
 import VulnLibraryPage from '@/pages/VulnLibraryPage';
 import ConfigPage from '@/pages/admin/ConfigPage';
 import UsersPage from '@/pages/admin/UsersPage';
@@ -22,7 +23,8 @@ import UsersPage from '@/pages/admin/UsersPage';
  * - /projects/:id                                ProjectDetailPage
  * - /projects/:id/scans/:runId                   ScanPage
  * - /projects/:id/scans/:runId/report            ReportPage (§5.4)
- * - /projects/:id/vuln-library                   VulnLibraryPage
+ * - /projects/:id/vuln-library                   VulnLibraryPage (§5.5)
+ * - /projects/:id/vuln-library/:libId            VulnLibraryDetailPage (§5.5)
  * - /admin/users                                 UsersPage (admin only)
  * - /admin/config                                ConfigPage (admin only)
  */
@@ -42,6 +44,10 @@ export default function App(): React.ReactElement {
                 <Route path="/projects/:id/scans/:runId" element={<ScanPage />} />
                 <Route path="/projects/:id/scans/:runId/report" element={<ReportPage />} />
                 <Route path="/projects/:id/vuln-library" element={<VulnLibraryPage />} />
+                <Route
+                  path="/projects/:id/vuln-library/:libId"
+                  element={<VulnLibraryDetailPage />}
+                />
                 <Route path="/admin/users" element={<UsersPage />} />
                 <Route path="/admin/config" element={<ConfigPage />} />
                 <Route
