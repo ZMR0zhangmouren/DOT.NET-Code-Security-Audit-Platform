@@ -63,6 +63,10 @@ export default function ProjectDetailPage(): React.ReactElement {
   const [scansLoading, setScansLoading] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [showNewScan, setShowNewScan] = useState(false);
+  // §5.4 多 ScanRun 对比 —— 弹窗内 select a/b
+  const [showCompare, setShowCompare] = useState(false);
+  const [compareA, setCompareA] = useState<string>('');
+  const [compareB, setCompareB] = useState<string>('');
 
   // Members tab 状态(§4.2.8)
   const [members, setMembers] = useState<ProjectMember[]>([]);
@@ -402,11 +406,76 @@ export default function ProjectDetailPage(): React.ReactElement {
                   >
                     {showUpload ? '取消上传' : '+ Upload Version'}
                   </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (runs.length < 2) {
+                        setErr('需要至少 2 个 ScanRun 才能对比');
+                        return;
+                      }
+                      setCompareA(runs[1]?.id ?? '');
+                      setCompareB(runs[0]?.id ?? '');
+                      setShowCompare((v) => !v);
+                    }}
+                    disabled={runs.length < 2}
+                    data-testid="scans-compare-toggle"
+                  >
+                    {showCompare ? '取消对比' : 'Compare'}
+                  </Button>
                   <Button onClick={() => setShowNewScan((v) => !v)} data-testid="scans-new">
                     + New Scan
                   </Button>
                 </div>
               </div>
+
+              {showCompare && (
+                <div
+                  className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-3"
+                  data-testid="scans-compare-panel"
+                >
+                  <label className="flex flex-col gap-1 text-xs">
+                    <span className="text-muted-foreground">Baseline (A)</span>
+                    <select
+                      value={compareA}
+                      onChange={(e) => setCompareA(e.target.value)}
+                      className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+                      data-testid="compare-select-a"
+                    >
+                      {runs.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.id} ({r.status})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs">
+                    <span className="text-muted-foreground">Target (B)</span>
+                    <select
+                      value={compareB}
+                      onChange={(e) => setCompareB(e.target.value)}
+                      className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+                      data-testid="compare-select-b"
+                    >
+                      {runs.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.id} ({r.status})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <Button
+                    disabled={!compareA || !compareB || compareA === compareB}
+                    onClick={() => {
+                      navigate(
+                        `/projects/${id}/scans/diff?a=${encodeURIComponent(compareA)}&b=${encodeURIComponent(compareB)}`,
+                      );
+                    }}
+                    data-testid="compare-go"
+                  >
+                    Compare →
+                  </Button>
+                </div>
+              )}
 
               {showUpload && id && (
                 <div className="rounded-lg border bg-card p-4" data-testid="scans-upload-panel">

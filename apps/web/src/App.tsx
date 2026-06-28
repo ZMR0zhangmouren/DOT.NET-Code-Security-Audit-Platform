@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
+import DiffPage from '@/pages/DiffPage';
 import HomePage from '@/pages/HomePage';
 import LoginPage from '@/pages/LoginPage';
 import ProjectDetailPage from '@/pages/ProjectDetailPage';
@@ -23,6 +24,7 @@ import UsersPage from '@/pages/admin/UsersPage';
  * - /projects/:id                                ProjectDetailPage
  * - /projects/:id/scans/:runId                   ScanPage
  * - /projects/:id/scans/:runId/report            ReportPage (§5.4)
+ * - /projects/:id/scans/diff?a=&b=               DiffPage (§5.4 多 ScanRun 对比)
  * - /projects/:id/vuln-library                   VulnLibraryPage (§5.5)
  * - /projects/:id/vuln-library/:libId            VulnLibraryDetailPage (§5.5)
  * - /admin/users                                 UsersPage (admin only)
@@ -43,6 +45,7 @@ export default function App(): React.ReactElement {
                 <Route path="/projects/:id" element={<ProjectDetailPage />} />
                 <Route path="/projects/:id/scans/:runId" element={<ScanPage />} />
                 <Route path="/projects/:id/scans/:runId/report" element={<ReportPage />} />
+                <Route path="/projects/:id/scans/diff" element={<DiffPage />} />
                 <Route path="/projects/:id/vuln-library" element={<VulnLibraryPage />} />
                 <Route
                   path="/projects/:id/vuln-library/:libId"

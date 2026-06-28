@@ -8,6 +8,7 @@ import { vulnLibraryEntries, vulnerabilities } from '../db/schema.js';
 export interface VulnLibraryPublic {
   id: string;
   projectId: string;
+  fingerprint: string;
   vulnType: string;
   severityMax: 'C' | 'H' | 'M' | 'L';
   status: VulnLibraryStatus;
@@ -140,6 +141,7 @@ export class VulnLibraryService {
     return {
       id: r.id,
       projectId: r.projectId,
+      fingerprint: r.fingerprint,
       vulnType: r.vulnType,
       severityMax: r.severityMax,
       status: r.status,
