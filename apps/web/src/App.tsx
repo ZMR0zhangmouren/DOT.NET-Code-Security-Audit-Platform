@@ -9,6 +9,7 @@ import ProjectDetailPage from '@/pages/ProjectDetailPage';
 import ProjectsPage from '@/pages/ProjectsPage';
 import ReportPage from '@/pages/ReportPage';
 import ScanPage from '@/pages/ScanPage';
+import SettingsPage from '@/pages/SettingsPage';
 import VulnLibraryDetailPage from '@/pages/VulnLibraryDetailPage';
 import VulnLibraryPage from '@/pages/VulnLibraryPage';
 import ConfigPage from '@/pages/admin/ConfigPage';
@@ -29,6 +30,7 @@ import UsersPage from '@/pages/admin/UsersPage';
  * - /projects/:id/vuln-library/:libId            VulnLibraryDetailPage (§5.5)
  * - /admin/users                                 UsersPage (admin only)
  * - /admin/config                                ConfigPage (admin only)
+ * - /me                                         SettingsPage (§6.2 改自己密码)
  */
 export default function App(): React.ReactElement {
   return (
@@ -53,6 +55,7 @@ export default function App(): React.ReactElement {
                 />
                 <Route path="/admin/users" element={<UsersPage />} />
                 <Route path="/admin/config" element={<ConfigPage />} />
+                <Route path="/me" element={<SettingsPage />} />
                 <Route
                   path="*"
                   element={

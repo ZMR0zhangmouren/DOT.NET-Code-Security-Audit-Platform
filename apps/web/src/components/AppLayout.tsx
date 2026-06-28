@@ -37,7 +37,15 @@ export default function AppLayout({ children }: { children: ReactNode }): React.
                   </>
                 )}
                 <span className="px-2 text-xs text-muted-foreground">
-                  {user.username} · {user.role}
+                  <NavLink
+                    to="/me"
+                    className="hover:underline"
+                    data-testid="nav-me"
+                    title="个人中心 / 改密码"
+                  >
+                    {user.username}
+                  </NavLink>{' '}
+                  · {user.role}
                 </span>
                 <Button
                   size="sm"

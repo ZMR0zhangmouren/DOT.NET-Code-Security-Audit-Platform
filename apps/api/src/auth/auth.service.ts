@@ -1,4 +1,10 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { JwtService } from '@nestjs/jwt'; // 运行时需保留(NestJS DI 反射元数据)
 import * as argon2 from 'argon2';
@@ -6,6 +12,25 @@ import { eq } from 'drizzle-orm';
 
 import { DATABASE, type Db } from '../db/database.module.js';
 import { users } from '../db/schema.js';
+
+/**
+ * §6.2 密码强度规则(MVP):
+ * - 至少 8 字符
+ * - 至少 1 个数字
+ * - 至少 1 个字母
+ * Phase 2 可加大小写 / 特殊字符等更严规则。
+ */
+export function validatePasswordStrength(pw: string): void {
+  if (pw.length < 8) {
+    throw new BadRequestException('password must be at least 8 characters');
+  }
+  if (!/[0-9]/.test(pw)) {
+    throw new BadRequestException('password must contain at least one digit');
+  }
+  if (!/[A-Za-z]/.test(pw)) {
+    throw new BadRequestException('password must contain at least one letter');
+  }
+}
 
 export interface JwtPayload {
   sub: string;
@@ -103,5 +128,45 @@ export class AuthService {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * §6.2 改密码(登录用户改自己):
+   * 1. 校验旧密码(走 argon2.verify)
+   * 2. 校验新密码强度
+   * 3. 新旧密码相同 → 拒绝
+   * 4. argon2id 重新 hash 并落盘
+   */
+  async changePassword(
+    userId: string,
+    oldPassword: string,
+    newPassword: string,
+  ): Promise<{ ok: true }> {
+    if (!oldPassword || !newPassword) {
+      throw new BadRequestException('oldPassword and newPassword are required');
+    }
+    if (oldPassword === newPassword) {
+      throw new BadRequestException('new password must differ from old password');
+    }
+    const row = this.db.select().from(users).where(eq(users.id, userId)).get() as
+      | { id: string; passwordHash: string; isActive: boolean | null }
+      | undefined;
+    if (!row) {
+      throw new NotFoundException(`user ${userId} not found`);
+    }
+    if (row.isActive === false) {
+      throw new UnauthorizedException('user is inactive');
+    }
+    const ok = await argon2.verify(row.passwordHash, oldPassword);
+    if (!ok) {
+      throw new BadRequestException('old password is incorrect');
+    }
+    validatePasswordStrength(newPassword);
+    const passwordHash = await AuthService.hashPassword(newPassword);
+    const result = this.db.update(users).set({ passwordHash }).where(eq(users.id, userId)).run();
+    if (result.changes === 0) {
+      throw new NotFoundException(`user ${userId} not found`);
+    }
+    return { ok: true };
   }
 }
