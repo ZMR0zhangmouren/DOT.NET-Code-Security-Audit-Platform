@@ -17,7 +17,7 @@ export class HealthController {
   ) {}
 
   @Get()
-  check(): {
+  async check(): Promise<{
     status: 'ok';
     uptimeSec: number;
     coverageModeDefault: (typeof COVERAGE_MODE)[number];
@@ -26,7 +26,7 @@ export class HealthController {
     queueDepth: number;
     queueRunning: number;
     queueMaxConcurrent: number;
-  } {
+  }> {
     const rows = this.db.all<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
     );
@@ -36,8 +36,8 @@ export class HealthController {
       coverageModeDefault: COVERAGE_MODE[0],
       nodeVersion: process.version,
       dbTables: rows.length,
-      queueDepth: this.scanQueue.getQueueDepth(),
-      queueRunning: this.scanQueue.getRunningCount(),
+      queueDepth: await this.scanQueue.getQueueDepth(),
+      queueRunning: await this.scanQueue.getRunningCount(),
       queueMaxConcurrent: this.scanQueue.getMaxConcurrent(),
     };
   }

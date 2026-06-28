@@ -88,14 +88,14 @@ export class ScanService {
   ) {}
 
   /** 创建一个 ScanRun 并立即异步启动 */
-  create(input: {
+  async create(input: {
     projectId: string;
     codeVersionId: string;
     skillBundleId: string;
     triggerType: 'manual' | 'scheduled' | 'replay';
     triggeredBy: string;
     coverageMode?: CoverageMode;
-  }): ScanRunPublic {
+  }): Promise<ScanRunPublic> {
     const project = this.db
       .select({ id: projects.id })
       .from(projects)
@@ -150,8 +150,15 @@ export class ScanService {
       })
       .run();
 
-    // §11 Q6 —— 通过 ScanQueueService 入队(进程内队列,worker pool 调度)
-    this.queue.enqueue(id);
+    // §11 Q6 —— 通过 ScanQueueService 入队(BullMQ + Redis,Phase 2 升级 2026-06-28)
+    // 错误不静默吞:Redis 不可达时让上层感知,而不是把 DB 行留在 'queued' 状态
+    // 永远没人跑
+    try {
+      await this.queue.enqueue(id);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new BadRequestException(`failed to enqueue scan ${id}: ${msg}`);
+    }
 
     return this.get(id);
   }
@@ -188,7 +195,7 @@ export class ScanService {
   }
 
   /** Phase 2 占位 */
-  replay(id: string): ScanRunPublic {
+  async replay(id: string): Promise<ScanRunPublic> {
     const orig = this.get(id);
     return this.create({
       projectId: orig.projectId,

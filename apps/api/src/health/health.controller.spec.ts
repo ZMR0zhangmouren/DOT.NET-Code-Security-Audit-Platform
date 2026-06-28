@@ -10,10 +10,11 @@ vi.mock('../db/database.module.js', () => ({
 }));
 
 // Mock scan-queue 以避开 ESM 循环(ScanQueueService → ScanRunnerService → drizzle/storage)
+// BullMQ 升级后 getQueueDepth / getRunningCount 返回 Promise。
 vi.mock('../scan/scan-queue.service.js', () => ({
   ScanQueueService: class {
-    getQueueDepth = () => 0;
-    getRunningCount = () => 0;
+    getQueueDepth = async () => 0;
+    getRunningCount = async () => 0;
     getMaxConcurrent = () => 2;
   },
 }));
@@ -25,12 +26,12 @@ describe('HealthController (mocked DB)', () => {
       all: () => [{ name: 'projects' }, { name: 'users' }, { name: 'scan_runs' }],
     };
     const fakeQueue = {
-      getQueueDepth: () => 5,
-      getRunningCount: () => 2,
+      getQueueDepth: async () => 5,
+      getRunningCount: async () => 2,
       getMaxConcurrent: () => 2,
     };
     const controller = new mod.HealthController(fakeDb as never, fakeQueue as never);
-    const result = controller.check();
+    const result = await controller.check();
     expect(result.status).toBe('ok');
     expect(result.dbTables).toBe(3);
     expect(result.coverageModeDefault).toBe('FULL');

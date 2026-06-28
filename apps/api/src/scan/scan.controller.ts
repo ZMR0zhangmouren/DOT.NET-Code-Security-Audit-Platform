@@ -18,7 +18,7 @@ export class ScanController {
   constructor(private readonly scan: ScanService) {}
 
   @Post('scan-runs')
-  create(@Req() req: Request, @Body() body: CreateScanDto): ScanRunPublic {
+  async create(@Req() req: Request, @Body() body: CreateScanDto): Promise<ScanRunPublic> {
     const triggeredBy = (req.headers['x-user-id'] as string | undefined) ?? 'unknown';
     return this.scan.create({
       projectId: body.projectId,
@@ -46,7 +46,7 @@ export class ScanController {
   }
 
   @Post('scan-runs/:id/replay')
-  replay(@Param('id') id: string): ScanRunPublic {
+  async replay(@Param('id') id: string): Promise<ScanRunPublic> {
     return this.scan.replay(id);
   }
 

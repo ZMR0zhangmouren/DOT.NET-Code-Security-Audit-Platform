@@ -247,7 +247,7 @@ describe('ScanService (mocked DB)', () => {
       { cancel } as never,
       storage as never,
     );
-    expect(() =>
+    await expect(
       svc.create({
         projectId: 'prj-missing',
         codeVersionId: 'cv-1',
@@ -255,7 +255,7 @@ describe('ScanService (mocked DB)', () => {
         triggerType: 'manual',
         triggeredBy: 'admin',
       }),
-    ).toThrow(/project prj-missing not found/);
+    ).rejects.toThrow(/project prj-missing not found/);
     expect(enqueue).not.toHaveBeenCalled();
   });
 
@@ -273,7 +273,7 @@ describe('ScanService (mocked DB)', () => {
       { cancel } as never,
       storage as never,
     );
-    expect(() =>
+    await expect(
       svc.create({
         projectId: 'prj-1',
         codeVersionId: 'cv-missing',
@@ -281,7 +281,7 @@ describe('ScanService (mocked DB)', () => {
         triggerType: 'manual',
         triggeredBy: 'admin',
       }),
-    ).toThrow(/codeVersion cv-missing not found in project prj-1/);
+    ).rejects.toThrow(/codeVersion cv-missing not found in project prj-1/);
   });
 
   it('create:skillBundle 不存在 → NotFoundException', async () => {
@@ -298,7 +298,7 @@ describe('ScanService (mocked DB)', () => {
       { cancel } as never,
       storage as never,
     );
-    expect(() =>
+    await expect(
       svc.create({
         projectId: 'prj-1',
         codeVersionId: 'cv-1',
@@ -306,7 +306,7 @@ describe('ScanService (mocked DB)', () => {
         triggerType: 'manual',
         triggeredBy: 'admin',
       }),
-    ).toThrow(/skillBundle sb-missing not found/);
+    ).rejects.toThrow(/skillBundle sb-missing not found/);
   });
 
   it('create:skillBundle 不 active → BadRequestException', async () => {
@@ -323,7 +323,7 @@ describe('ScanService (mocked DB)', () => {
       { cancel } as never,
       storage as never,
     );
-    expect(() =>
+    await expect(
       svc.create({
         projectId: 'prj-1',
         codeVersionId: 'cv-1',
@@ -331,7 +331,7 @@ describe('ScanService (mocked DB)', () => {
         triggerType: 'manual',
         triggeredBy: 'admin',
       }),
-    ).toThrow(/skillBundle is not active/);
+    ).rejects.toThrow(/skillBundle is not active/);
   });
 
   it('create:成功路径 → ScanRunPublic status=queued,入队', async () => {
@@ -348,7 +348,7 @@ describe('ScanService (mocked DB)', () => {
       { cancel } as never,
       storage as never,
     );
-    const result = svc.create({
+    const result = await svc.create({
       projectId: 'prj-1',
       codeVersionId: 'cv-1',
       skillBundleId: 'sb-1',
@@ -475,7 +475,7 @@ describe('ScanService (mocked DB)', () => {
       { cancel } as never,
       storage as never,
     );
-    const replayed = svc.replay('scan-1');
+    const replayed = await svc.replay('scan-1');
     expect(replayed.triggerType).toBe('replay');
     expect(replayed.id).not.toBe('scan-1');
     expect(replayed.projectId).toBe('prj-1');

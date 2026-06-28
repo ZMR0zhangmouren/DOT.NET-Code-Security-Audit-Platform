@@ -1,38 +1,57 @@
+import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import type { Job, Queue } from 'bullmq';
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { ScanRunnerService } from './scan-runner.service.js'; // runtime ref (NestJS DI)
+export const SCAN_QUEUE_NAME = 'scan';
+export const SCAN_JOB_NAME = 'run';
 
 export const SCAN_MAX_CONCURRENT_DEFAULT = 2;
 export const SCAN_MAX_CONCURRENT_MIN = 1;
 export const SCAN_MAX_CONCURRENT_MAX = 10;
 
+export interface ScanJobData {
+  scanRunId: string;
+}
+
 /**
- * §11 Q6 —— 真正并发扫描(MVP in-memory queue + worker pool)
+ * §11 Q6 —— BullMQ + Redis 真队列(MVP → Phase 2 升级落地,2026-06-28)
  *
- * 设计决策(参见任务说明):
- * - 选 (B) in-memory queue + worker pool,不引入 Redis
- * - BullMQ 5.x 的 peerDependency 强制要求 redis,无 in-memory transport
- * - 进程内调度:producer + worker 同进程;Phase 2 切 BullMQ + 分布式 worker
+ * 历史演进(参见 需求文档.md §11 Q6):
+ *   - MVP(commit e3bbe96):in-memory FIFO + worker pool,无进程崩溃恢复能力
+ *   - Phase 2(本次升级):BullMQ + Redis,带来:
+ *       * 进程崩溃可恢复 —— job 持久化在 Redis,worker 重启自动接管
+ *       * 分布式 worker —— 多个 API 实例共享同一队列,水平扩展
+ *       * 可视化 —— Phase 2.5 接 Bull-Board(`@bull-board/api` + `@bull-board/express`)
  *
- * 并发控制:固定大小 worker pool(SCAN_MAX_CONCURRENT 个并发槽位);
- * 超过并发的入队请求留在 pending,FIFO 调度。
+ * §11 Q11 备注:
+ *   §11 Q11 要求"本地部署 / 无 Docker"。本次升级部分打破该约束 —— Redis 是 BullMQ 4/5 的硬依赖,
+ *   无 in-memory transport。但 Redis 本身极轻量,推荐两种部署:
+ *     (1) `docker run -d --name redis -p 6379:6379 redis:7-alpine`(推荐,零配置)
+ *     (2) 本机直接装 Redis 服务(Win 上可用 Memurai 或 WSL apt 装)
+ *   若用户在隔离环境完全无法装 Redis,Phase 3 可回退到 `better-queue` in-process 实现,
+ *   public API(enqueue / getQueueDepth / getRunningCount)保持兼容。
+ *
+ * 公开 API(向后兼容 ScanService 调用):
+ *   - enqueue(scanRunId)
+ *   - getMaxConcurrent() / getQueueDepth() / getRunningCount()
+ *
+ * BullMQ 角色分工:
+ *   - ScanQueueService(本类)= Producer —— `Queue.add('run', {scanRunId})`
+ *   - ScanProcessor = Worker —— `@Processor('scan')` + `@Process('run')` 调 `runner.kickoff`
+ *   - 并发上限由 Worker `concurrency: SCAN_MAX_CONCURRENT` 控制,跟 in-memory 实现保持一致语义
  */
 @Injectable()
 export class ScanQueueService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger('ScanQueueService');
 
-  /** pending 任务(等待 worker 取走) */
-  private readonly pending: string[] = [];
-  /** 当前正在执行的 scanRunId */
-  private readonly running = new Set<string>();
-
   private maxConcurrent = SCAN_MAX_CONCURRENT_DEFAULT;
-  private workerCount = 0;
-  private shuttingDown = false;
 
-  constructor(private readonly runner: ScanRunnerService) {}
+  constructor(@InjectQueue(SCAN_QUEUE_NAME) private readonly queue: Queue<ScanJobData>) {}
 
+  /**
+   * 在 module init 时由外部 caller 显式调一次(扫到不依赖 process.env 副作用)。
+   * 兼容老的 in-memory 调用:`q.onModuleInit()`。
+   */
   onModuleInit(): void {
     const envVal = process.env['SCAN_MAX_CONCURRENT'];
     if (envVal !== undefined && envVal !== '') {
@@ -49,102 +68,104 @@ export class ScanQueueService implements OnModuleInit, OnModuleDestroy {
       this.maxConcurrent = parsed;
     }
     this.logger.log(
-      `ScanQueueService initialized; maxConcurrent=${this.maxConcurrent}` +
+      `ScanQueueService initialized (BullMQ + Redis); maxConcurrent=${this.maxConcurrent}` +
         ` (env SCAN_MAX_CONCURRENT, range [${SCAN_MAX_CONCURRENT_MIN}, ${SCAN_MAX_CONCURRENT_MAX}])`,
     );
   }
 
-  onModuleDestroy(): void {
-    this.shuttingDown = true;
+  async onModuleDestroy(): Promise<void> {
+    // BullMQ Queue 持有 Redis 连接,NestJS 容器销毁时关闭
+    try {
+      await this.queue.close();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.logger.warn(`ScanQueue close on shutdown failed: ${msg}`);
+    }
   }
 
-  /** 当前 worker 槽位数(可配) */
+  /** 当前 worker 并发上限(从 SCAN_MAX_CONCURRENT 解析) */
   getMaxConcurrent(): number {
     return this.maxConcurrent;
   }
 
-  /** 当前 pending 队列长度 */
-  getQueueDepth(): number {
-    return this.pending.length;
+  /** 当前 active 数(=正在跑的 worker) */
+  async getRunningCount(): Promise<number> {
+    const active = await this.queue.getActiveCount();
+    return active;
   }
 
-  /** 当前正在执行的 scan 数 */
-  getRunningCount(): number {
-    return this.running.size;
+  /** 当前 waiting + delayed 数(还没被 worker 拉走的 job) */
+  async getQueueDepth(): Promise<number> {
+    const waiting = await this.queue.getWaitingCount();
+    const delayed = await this.queue.getDelayedCount();
+    return waiting + delayed;
   }
 
   /**
    * 入队一个 scanRunId。
-   * - 如果有空 worker 槽,立即启动
-   * - 否则追加到 pending 队列尾部(FIFO),worker 完成后从头部取下一个
+   *   - 幂等:同一 id 已存在 waiting/active/delayed 时不重复加,返回已存在 job 的状态
+   *   - jobOpts:去掉 `attempts` 与 `backoff`(scan runner 内部已处理失败,
+   *     且 BullMQ 自动 retry 会导致同一个 scanRunId 跑多次,违反 §5.3 幂等约束)
+   *   - removeOnComplete=true:完成即清掉,避免 Redis 堆积
    */
-  enqueue(scanRunId: string): { position: number; running: number; maxConcurrent: number } {
-    if (this.shuttingDown) {
-      throw new Error('ScanQueueService is shutting down; cannot enqueue new scans');
-    }
-
-    if (this.running.has(scanRunId) || this.pending.includes(scanRunId)) {
-      // 重复入队:幂等,返回当前位置
-      const pos = this.pending.indexOf(scanRunId);
-      if (pos >= 0) {
-        return {
-          position: pos + 1,
-          running: this.running.size,
-          maxConcurrent: this.maxConcurrent,
-        };
-      }
+  async enqueue(
+    scanRunId: string,
+  ): Promise<{ position: number; running: number; maxConcurrent: number }> {
+    const existing = await this.findExistingJob(scanRunId);
+    if (existing) {
+      const pos = await this.computePosition(existing);
       return {
-        position: 0,
-        running: this.running.size,
+        position: pos,
+        running: await this.getRunningCount(),
         maxConcurrent: this.maxConcurrent,
       };
     }
 
-    if (this.running.size < this.maxConcurrent) {
-      this.startWorker(scanRunId);
-      return { position: 0, running: this.running.size, maxConcurrent: this.maxConcurrent };
-    }
+    await this.queue.add(
+      SCAN_JOB_NAME,
+      { scanRunId },
+      {
+        jobId: scanRunId, // 幂等 —— 同一 scanRunId 重复 add 会去重
+        removeOnComplete: true,
+        removeOnFail: 50, // 失败保留最近 50 条便于排查
+      },
+    );
 
-    this.pending.push(scanRunId);
+    const after = await this.findExistingJob(scanRunId);
+    const pos = after ? await this.computePosition(after) : 1;
     this.logger.log(
-      `scan ${scanRunId} queued; pending depth=${this.pending.length}, running=${this.running.size}/${this.maxConcurrent}`,
+      `scan ${scanRunId} enqueued; depth=${await this.getQueueDepth()}, running=${await this.getRunningCount()}/${this.maxConcurrent}`,
     );
     return {
-      position: this.pending.length,
-      running: this.running.size,
+      position: pos,
+      running: await this.getRunningCount(),
       maxConcurrent: this.maxConcurrent,
     };
   }
 
-  private startWorker(scanRunId: string): void {
-    this.running.add(scanRunId);
-    this.workerCount++;
-    const workerId = this.workerCount;
-    this.logger.log(
-      `worker[${workerId}] starting scan ${scanRunId} (running=${this.running.size}/${this.maxConcurrent})`,
-    );
-
-    // 不阻塞:把执行交给 runner,完成后从 running 中移除并调度下一个
-    void this.runner
-      .kickoff(scanRunId)
-      .then(() => {
-        this.logger.log(`worker[${workerId}] finished scan ${scanRunId}`);
-      })
-      .catch((e: unknown) => {
-        const msg = e instanceof Error ? e.message : String(e);
-        this.logger.error(`worker[${workerId}] crashed on scan ${scanRunId}: ${msg}`);
-      })
-      .finally(() => {
-        this.running.delete(scanRunId);
-        this.dispatchNext();
-      });
+  /** 在 waiting / active / delayed 中找同 id 的 job */
+  private async findExistingJob(scanRunId: string): Promise<Job<ScanJobData> | undefined> {
+    const statuses: Array<'waiting' | 'active' | 'delayed'> = ['waiting', 'active', 'delayed'];
+    for (const status of statuses) {
+      const job = await this.queue.getJob(scanRunId);
+      if (job) {
+        const state = await job.getState();
+        if (state === status) return job;
+      }
+    }
+    return (await this.queue.getJob(scanRunId)) ?? undefined;
   }
 
-  private dispatchNext(): void {
-    if (this.shuttingDown) return;
-    while (this.running.size < this.maxConcurrent && this.pending.length > 0) {
-      const next = this.pending.shift();
-      if (next) this.startWorker(next);
+  /** 计算 position:active=0,waiting 里 idx+1,delayed=depth+1 */
+  private async computePosition(job: Job<ScanJobData>): Promise<number> {
+    const state = await job.getState();
+    if (state === 'active') return 0;
+    if (state === 'waiting') {
+      const waiting = await this.queue.getWaiting();
+      const idx = waiting.findIndex((j) => j.id === job.id);
+      return idx >= 0 ? idx + 1 : 1;
     }
+    if (state === 'delayed') return (await this.queue.getWaitingCount()) + 1;
+    return 0;
   }
 }
