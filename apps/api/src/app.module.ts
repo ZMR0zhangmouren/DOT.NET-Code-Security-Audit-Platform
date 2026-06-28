@@ -7,6 +7,7 @@ import { DatabaseModule } from './db/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { ProjectsModule } from './projects/projects.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
+import { ReportModule } from './report/report.module.js';
 import { ScanModule } from './scan/scan.module.js';
 import { SettingsModule } from './settings/settings.module.js';
 import { SkillBundlesModule } from './skill-bundles/skill-bundles.module.js';
@@ -33,6 +34,7 @@ import { UsersModule } from './users/users.module.js';
     CodeVersionsModule,
     ScanModule,
     SkillBundlesModule,
+    ReportModule,
     UsersModule,
     SettingsModule,
     AgentsModule,
