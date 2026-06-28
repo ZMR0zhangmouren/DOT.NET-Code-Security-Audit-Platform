@@ -121,6 +121,14 @@ export class AuthService {
     };
   }
 
+  /**
+   * §6.2 鉴权配套:从 DB 取 user 完整公开信息(供 /auth/me 用)。
+   * 与 me() 行为一致;改名为 getMe 让 controller 调用更显式。
+   */
+  async getMe(userId: string): Promise<AuthedUser | null> {
+    return this.me(userId);
+  }
+
   async verifyToken(token: string): Promise<JwtPayload | null> {
     try {
       const payload = await this.jwt.verifyAsync<JwtPayload>(token);

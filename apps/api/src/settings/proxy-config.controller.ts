@@ -1,5 +1,10 @@
-import { Body, Controller, Get, Patch, Post, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
+
+import { CurrentUser } from '../auth/current-user.decorator.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import type { AuthenticatedUser } from '../auth/jwt.strategy.js';
+import { Roles } from '../auth/roles.decorator.js';
+import { RolesGuard } from '../auth/roles.guard.js';
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ProxyConfigService, type ProxyConfigPublic } from './proxy-config.service.js'; // ProxyConfigService 需运行时引用(NestJS DI)
@@ -17,12 +22,10 @@ interface UpsertDto {
 /**
  * §5.7 Proxy Config 端点 —— 单条全局配置 + 测试连通性。
  *
- * 端点:
- * - GET    /api/admin/proxy       读当前配置(无则 200 + 直连占位)
- * - PATCH  /api/admin/proxy       upsert(总是覆盖唯一行)
- * - POST   /api/admin/proxy/test  测连通性,失败时 testStatus=failed + testMessage
+ * 鉴权:GET 任何已登录用户;PATCH / test 仅 admin
  */
 @Controller('admin/proxy')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ProxyConfigController {
   constructor(private readonly proxy: ProxyConfigService) {}
 
@@ -32,14 +35,14 @@ export class ProxyConfigController {
   }
 
   @Patch()
-  upsert(@Req() req: Request, @Body() body: UpsertDto): ProxyConfigPublic {
-    const headerUser = req.headers['x-user-id'] as string | undefined;
-    const userId =
-      (req as Request & { user?: { sub?: string } }).user?.sub ?? headerUser ?? 'unknown';
-    return this.proxy.upsert({ ...body, updatedBy: userId });
+  @Roles('admin')
+  upsert(@CurrentUser() user: AuthenticatedUser, @Body() body: UpsertDto): ProxyConfigPublic {
+    const updatedBy = user?.sub ?? 'unknown';
+    return this.proxy.upsert({ ...body, updatedBy });
   }
 
   @Post('test')
+  @Roles('admin')
   async test(): Promise<{ ok: boolean; message: string; latencyMs: number }> {
     return this.proxy.testConnection();
   }

@@ -2,6 +2,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import type { ConnectionOptions } from 'bullmq';
 
+import { AuthModule } from '../auth/auth.module.js';
 import { DatabaseModule } from '../db/database.module.js';
 import { RealtimeModule } from '../realtime/realtime.module.js';
 import { StorageModule } from '../storage/storage.module.js';
@@ -31,6 +32,7 @@ function readRedisConnection(): ConnectionOptions {
     StorageModule,
     RealtimeModule,
     VulnsModule,
+    AuthModule,
     BullModule.forRoot({
       connection: readRedisConnection(),
     }),

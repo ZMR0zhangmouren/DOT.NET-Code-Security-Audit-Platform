@@ -1,5 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+
+import { CurrentUser } from '../auth/current-user.decorator.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import type { AuthenticatedUser } from '../auth/jwt.strategy.js';
+import { Roles } from '../auth/roles.decorator.js';
+import { RolesGuard } from '../auth/roles.guard.js';
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SettingsService, type AiKeyPublic } from './settings.service.js'; // SettingsService 需运行时引用(NestJS DI)
@@ -25,10 +30,12 @@ interface UpdateDto {
 /**
  * §5.7 系统配置 —— AI Key CRUD
  *
- * MVP 仅 admin 可写;任何人可读(只暴露后 4 位,不含明文)
- * Phase 2:加 AdminGuard、限流、审计日志
+ * 鉴权:
+ * - GET 任何已登录用户(只暴露后 4 位,不含明文)
+ * - POST / PATCH / DELETE / test / models 仅 admin(JwtAuthGuard + RolesGuard)
  */
 @Controller('settings/ai-keys')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class SettingsController {
   constructor(private readonly settings: SettingsService) {}
 
@@ -43,24 +50,24 @@ export class SettingsController {
   }
 
   @Post()
-  create(@Req() req: Request, @Body() body: CreateDto): AiKeyPublic {
-    // 优先从 JWT 拿 userId(header 兼容方式)
-    const headerUser = req.headers['x-user-id'] as string | undefined;
-    const userId =
-      (req as Request & { user?: { sub?: string } }).user?.sub ?? headerUser ?? 'unknown';
+  @Roles('admin')
+  create(@CurrentUser() user: AuthenticatedUser, @Body() body: CreateDto): AiKeyPublic {
+    const createdBy = user?.sub ?? 'unknown';
     return this.settings.createAiKey({
       ...body,
       availableModels: body.availableModels ?? [],
-      createdBy: userId,
+      createdBy,
     });
   }
 
   @Patch(':id')
+  @Roles('admin')
   update(@Param('id') id: string, @Body() body: UpdateDto): AiKeyPublic {
     return this.settings.updateAiKey(id, body);
   }
 
   @Delete(':id')
+  @Roles('admin')
   remove(@Param('id') id: string): { ok: true } {
     this.settings.deleteAiKey(id);
     return { ok: true };
@@ -70,6 +77,7 @@ export class SettingsController {
    * 测试连接 —— 调 /v1/models 验证 key + base_url
    */
   @Post(':id/test')
+  @Roles('admin')
   async testConnection(
     @Param('id') id: string,
   ): Promise<{ ok: boolean; message: string; latencyMs: number }> {
@@ -94,9 +102,9 @@ export class SettingsController {
 
   /**
    * 探测可用模型 —— 调 /v1/models 返回模型 id 列表(不保存,仅临时返回)
-   * 前端用这个自动填充表单的 availableModels 选择项
    */
   @Post(':id/models')
+  @Roles('admin')
   async listModels(
     @Param('id') id: string,
   ): Promise<{ ok: boolean; models: string[]; message?: string }> {

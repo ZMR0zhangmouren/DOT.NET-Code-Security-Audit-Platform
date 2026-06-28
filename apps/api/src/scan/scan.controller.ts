@@ -1,6 +1,9 @@
-import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import type { CoverageMode } from '@platform/shared';
-import type { Request } from 'express';
+
+import { CurrentUser } from '../auth/current-user.decorator.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import type { AuthenticatedUser } from '../auth/jwt.strategy.js';
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ScanService, type ScanRunPublic } from './scan.service.js'; // 运行时引用
@@ -13,13 +16,24 @@ interface CreateScanDto {
   coverageMode?: CoverageMode;
 }
 
+/**
+ * §5.3 Scan 主流程端点。
+ *
+ * 鉴权(JwtAuthGuard 已在 controller 级开启):
+ * - 全部端点要求登录
+ * - triggeredBy 从 JWT 解出(req.user.sub),不再读 x-user-id
+ */
 @Controller()
+@UseGuards(JwtAuthGuard)
 export class ScanController {
   constructor(private readonly scan: ScanService) {}
 
   @Post('scan-runs')
-  async create(@Req() req: Request, @Body() body: CreateScanDto): Promise<ScanRunPublic> {
-    const triggeredBy = (req.headers['x-user-id'] as string | undefined) ?? 'unknown';
+  async create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: CreateScanDto,
+  ): Promise<ScanRunPublic> {
+    const triggeredBy = user?.sub ?? 'unknown';
     return this.scan.create({
       projectId: body.projectId,
       codeVersionId: body.codeVersionId,

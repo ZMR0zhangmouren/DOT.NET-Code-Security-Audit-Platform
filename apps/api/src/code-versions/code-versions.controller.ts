@@ -10,14 +10,17 @@ import {
   Get,
   Param,
   Post,
-  Req,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface.js';
-import type { Request } from 'express';
 import { diskStorage } from 'multer';
+
+import { CurrentUser } from '../auth/current-user.decorator.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import type { AuthenticatedUser } from '../auth/jwt.strategy.js';
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import {
@@ -33,8 +36,13 @@ interface UploadMetaDto {
 
 /**
  * §5.2 CodeVersion 上传 + 列表 + 详情
+ *
+ * 鉴权(JwtAuthGuard 已在 controller 级开启):
+ * - 全部端点要求登录
+ * - uploadedBy 从 JWT 解出(req.user.sub),不再读 x-user-id
  */
 @Controller()
+@UseGuards(JwtAuthGuard)
 export class CodeVersionsController {
   constructor(private readonly cv: CodeVersionsService) {}
 
@@ -54,7 +62,7 @@ export class CodeVersionsController {
   )
   async upload(
     @Param('id') projectId: string,
-    @Req() req: Request,
+    @CurrentUser() user: AuthenticatedUser,
     @UploadedFile() file: Express.Multer.File | undefined,
     @Body() body: UploadMetaDto,
   ): Promise<CodeVersionPublic> {
@@ -64,7 +72,7 @@ export class CodeVersionsController {
       throw new BadRequestException('label is required');
     }
 
-    const uploadedBy = (req.headers['x-user-id'] as string | undefined) ?? 'unknown';
+    const uploadedBy = user?.sub ?? 'unknown';
 
     try {
       return await this.cv.uploadZip({

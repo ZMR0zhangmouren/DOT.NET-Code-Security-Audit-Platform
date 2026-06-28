@@ -1,4 +1,8 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { Roles } from '../auth/roles.decorator.js';
+import { RolesGuard } from '../auth/roles.guard.js';
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UsersService, type UserPublic, type UserRole } from './users.service.js'; // UsersService 需运行时引用(NestJS DI)
@@ -19,10 +23,11 @@ interface UpdateDto {
 }
 
 /**
- * §4.2.7 + §5.7 用户管理 —— MVP 仅 admin 可调
- * Phase 2 接 AdminGuard;目前先按 controller 层信任 x-user-id(预留 admin 校验位)
+ * §4.2.7 + §5.7 用户管理 —— admin only(JwtAuthGuard + RolesGuard('admin'))
  */
 @Controller('users')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin')
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 
