@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 仓库当前状态(2026-06-28)
 
-§5.3 / §5.4 / §5.5 三大主流程已落地,可端到端跑通一次完整审计。根目录含:
+§5.3 / §5.4 / §5.5 三大主流程 + §5.5 Vuln Library 真按钮 + §4.2.8 Members UI + §5.3 API 覆盖统计 + §5.7 git 凭证 + 代理 UI 已全部落地;可端到端跑通一次完整审计 + 出报告 + 漏洞库管理 + 项目成员协作 + 系统配置。根目录含:
 
 - `./需求文档.md` —— 1,418 行的产品/技术规格,锁定了 Q1–Q17 共 17 项决策
 - `./dotnet-security-audit-skill/` —— **独立 git 仓库**(独立 .git/、独立 main 分支),内含 38 个 .NET 审计 skill + 主 agent.md + 9 份 shared 规范;平台不修改它
@@ -126,8 +126,11 @@ pnpm --filter @platform/api seed
 - ✅ `pnpm -r test`(9 测试通过:shared 6 + api 2 + web 1)
 - ✅ `pnpm lint`(ESLint 0 错 0 警 + Prettier 干净)
 - ✅ **§5.3 Scan 主流程**:从 zip 上传 → Agent 调 MiniMax 跑 115 秒 → 3 漏洞入库 + 1 漏洞库条目
+- ✅ **§5.3 API 覆盖统计**:report §1 checklist 的 API 入口覆盖可勾选汇总(1bc9df4)
 - ✅ **§5.4 报告导出**:Markdown / JSON / zip 归档包三端点工作
-- ✅ **§5.5 漏洞库 UI**:列表 + 详情 + 状态流转(open / fixing / fixed / ignored)
+- ✅ **§5.5 漏洞库 UI**:列表 + 详情 + 状态流转(open / fixing / fixed / ignored),ProjectDetailPage 上 Vuln Library tab 已从 "Phase X 待上" 变成真按钮(bde81f9)
+- ✅ **§4.2.8 Members UI**:ProjectDetailPage 上 Members tab 从 "Phase X 待上" 变成真页面 —— 邀请 / 角色 / 移除(bde81f9)
+- ✅ **§5.7 git 凭证 + 代理 UI**:`/admin/config` 页面新增 git 凭证(GitHub PAT)与代理配置(6b8cb83)
 - ✅ GET `/api/health` 返回 `{status, uptimeSec, coverageModeDefault, nodeVersion, dbTables: 15}`
 
 ## 已锁定决策(Q1–Q17)
@@ -176,16 +179,20 @@ pnpm --filter @platform/api seed
 
 ## 下一步候选(2026-06-28 休息点后)
 
-| 候选 | 工作量 | 价值 |
-|------|--------|------|
-| ProjectDetailPage 把 "Vuln Library" tab 从"Phase X"变真 tab | 5 分钟 | 完成 §5.5 UI 闭环 |
-| §5.3 API 覆盖统计(让 §1 checklist 入口覆盖打勾) | 1 小时 | 让报告 §1 完整 |
-| §4.2.8 Members UI(把 Members tab 从"Phase X"变真) | 半天 | 多人协作基础 |
-| §5.7 git 凭证 + 代理 UI | 半天 | 完善系统配置 |
-| 真正跑多个 scan + 报告对比(两个 ScanRun 差异) | 2 小时 | Phase 2 §5.4 完整 |
-| BullMQ 真正并发扫描(Q6) | 1-2 天 | 性能 |
+| 候选 | 工作量 | 价值 | 状态 |
+|------|--------|------|------|
+| ProjectDetailPage 把 "Vuln Library" tab 从"Phase X"变真 tab | 5 分钟 | 完成 §5.5 UI 闭环 | ✅ bde81f9 |
+| §5.3 API 覆盖统计(让 §1 checklist 入口覆盖打勾) | 1 小时 | 让报告 §1 完整 | ✅ 1bc9df4 |
+| §4.2.8 Members UI(把 Members tab 从"Phase X"变真) | 半天 | 多人协作基础 | ✅ bde81f9 |
+| §5.7 git 凭证 + 代理 UI | 半天 | 完善系统配置 | ✅ 6b8cb83 |
+| 真正跑多个 scan + 报告对比(两个 ScanRun 差异) | 2 小时 | Phase 2 §5.4 完整 | 进行中(scan-diff.controller/service/util + 测试,主 session 写) |
+| BullMQ 真正并发扫描(Q6) | 1-2 天 | 性能 | 进行中(scan-queue.service.ts 主 session 写) |
+| ProjectDetailPage 还剩 Versions / Scans 两个 tab 显示 "Phase X 待上",待接通 | 半天 | 详情页 UI 闭环 | 待办 |
+| §5.7 真正接 git 凭证(目前只 UI,不实际 clone) | 1 天 | 让 §5.7 真闭环 | 待办 |
 
 ## 已知遗留(不阻塞)
 
-- `./dotnet-security-audit-skill/` 子仓库脏工作树有 tracked deletions(`CLAUDE.md` / `.claude/settings.local.json` / `.agents/skills/darwin-skill/*` 等);`darwin-skill/` 目录已空但仍在工作树;后续按需 `git checkout -- .` 或 commit 清理
-- ProjectDetailPage 几个 tab(Versions/Scans/Members)还显示"Phase X 待上",需要逐个接通
+- 子仓库脏工作树已于 2026-06-28 commit `973167f` 清理(子仓库独立演进):`temp/expert-debate/**`(16 docs R29-30 scratch)+ `audit_skill_optimization.md` + `agents/安全专家.agent.md`(alt-name 已被 `dotnet代码审计.agent.md` 取代)+ `darwin-skill/**` + `.claude/settings.local.json` + 子仓库 `CLAUDE.md` 共 27 个文件、11822 行删除
+- ProjectDetailPage 还剩 Versions / Scans 两个 tab 显示 "Phase X 待上",Members / Vuln Library 已接通
+- §5.7 git 凭证目前只 UI,未实际接 git clone;§5.7 真闭环留待 Phase 2
+- `.gitignore` 已加 `*.tsbuildinfo`,但 `apps/api/tsconfig.tsbuildinfo` 和 `apps/web/tsconfig.tsbuildinfo` 还是 tracked(主 session 取消跟踪)

@@ -44,3 +44,6 @@ storage/
 
 # 启动脚本日志(start.bat 写到 logs/*.log)
 logs/
+
+# TypeScript 增量编译缓存(tsc --incremental / 项目引用)
+*.tsbuildinfo
