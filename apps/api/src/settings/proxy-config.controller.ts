@@ -5,7 +5,7 @@ import type { Request } from 'express';
 import { ProxyConfigService, type ProxyConfigPublic } from './proxy-config.service.js'; // ProxyConfigService 需运行时引用(NestJS DI)
 
 interface UpsertDto {
-  protocol: 'http' | 'https' | 'socks' | null;
+  protocol: 'http' | 'https' | 'socks5' | null;
   host: string | null;
   port: number | null;
   username?: string | null;

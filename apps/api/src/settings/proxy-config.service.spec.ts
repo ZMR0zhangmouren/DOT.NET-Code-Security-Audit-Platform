@@ -27,7 +27,7 @@ vi.mock('drizzle-orm', () => ({
 
 interface ProxyRow {
   id: string;
-  protocol: 'http' | 'https' | 'socks' | null;
+  protocol: 'http' | 'https' | 'socks5' | null;
   host: string | null;
   port: number | null;
   username: string | null;
@@ -194,7 +194,7 @@ describe('ProxyConfigService (mocked DB)', () => {
 
     expect(() =>
       svc.upsert({
-        protocol: 'socks',
+        protocol: 'socks5',
         host: null,
         port: null,
         applyTo: 'all_outbound',

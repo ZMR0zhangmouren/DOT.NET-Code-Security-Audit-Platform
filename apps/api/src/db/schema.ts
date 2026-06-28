@@ -299,7 +299,7 @@ export const projectMembers = sqliteTable(
 // =====================================================================
 export const proxyConfigs = sqliteTable('proxy_configs', {
   id: text('id').primaryKey(),
-  protocol: text('protocol', { enum: ['http', 'https', 'socks'] }), // NULL = 直连
+  protocol: text('protocol', { enum: ['http', 'https', 'socks5'] }), // NULL = 直连(对应 §11 Q13:HTTP/HTTPS/SOCKS5)
   host: text('host'),
   port: integer('port'),
   username: text('username'), // NULL = 无认证

@@ -7,7 +7,7 @@ import { proxyConfigs } from '../db/schema.js';
 
 export interface ProxyConfigPublic {
   id: string;
-  protocol: 'http' | 'https' | 'socks' | null; // null = 直连
+  protocol: 'http' | 'https' | 'socks5' | null; // null = 直连(对应 §11 Q13 SOCKS5)
   host: string | null;
   port: number | null;
   username: string | null;
@@ -23,7 +23,7 @@ export interface ProxyConfigPublic {
 
 interface ProxyConfigRow {
   id: string;
-  protocol: 'http' | 'https' | 'socks' | null;
+  protocol: 'http' | 'https' | 'socks5' | null;
   host: string | null;
   port: number | null;
   username: string | null;
@@ -58,7 +58,7 @@ export class ProxyConfigService {
 
   /** upsert 语义:有则更新,无则创建(总是单条) */
   upsert(input: {
-    protocol: 'http' | 'https' | 'socks' | null;
+    protocol: 'http' | 'https' | 'socks5' | null;
     host: string | null;
     port: number | null;
     username?: string | null;
