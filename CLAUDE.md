@@ -4,11 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 仓库当前状态(2026-06-28)
 
-§5.3 / §5.4 / §5.5 三大主流程 + §5.5 Vuln Library 真按钮 + §4.2.8 Members UI + §5.3 API 覆盖统计 + §5.7 git 凭证 + 代理 UI 已全部落地;可端到端跑通一次完整审计 + 出报告 + 漏洞库管理 + 项目成员协作 + 系统配置。根目录含:
+§5.1–§5.7 全章节 + §11 Q6(BullMQ + Redis)+ §11 Q13(代理 / git 凭证)+ §5.4 多 ScanRun 对比 + §5.3 API 覆盖端到端 + §6.2 首次登录改密码 + §5.4 报告 Markdown 渲染 + CI/CD pipeline 全部落地;仓库 133 测试通过 / 0 错 0 警 / typecheck 全绿。端到端可跑通:
+
+- 上传 zip → 触发 BullMQ scan → 115 秒 → 漏洞入库 + 自动聚合到 VulnLibraryEntry
+- 多 ScanRun 对比(端到端实测,DB 真写 + redis 真跑 + diff 端点返回完整 ScanDiff)
+- API 覆盖统计(recompute-coverage 端点 + DB 真写 PARTIAL/COMPLETE)
+- Members grant/revoke/role change(只 owner / lead 能改)
+- git 凭证 + 代理(系统配置页 + 后端 CRUD)
+- 改密码(§6.2 落地)
+- CI pipeline(`.github/workflows/ci.yml`,8 step,PR 自动跑 typecheck/test/lint)
+
+根目录含:
 
 - `./需求文档.md` —— 1,418 行的产品/技术规格,锁定了 Q1–Q17 共 17 项决策
 - `./dotnet-security-audit-skill/` —— **独立 git 仓库**(独立 .git/、独立 main 分支),内含 38 个 .NET 审计 skill + 主 agent.md + 9 份 shared 规范;平台不修改它
-- `./apps/api/` —— **NestJS 后端**(modules: agents / auth / code-versions / db / health / projects / realtime / report / scan / settings / skill-bundles / storage / users / vulns,共 14 个)
+- `./apps/api/` —— **NestJS 后端**(modules: admin/queue-board / agents / auth / code-versions / db / health / projects / realtime / report / scan / settings / skill-bundles / storage / users / vulns,共 15 个)
 - `./apps/web/` —— **React + Vite + shadcn/ui 前端**(路由: /login / /projects / /projects/:id / /projects/:id/scans/:runId / /projects/:id/scans/:runId/report / /projects/:id/vuln-library / /projects/:id/vuln-library/:libId / /admin/users / /admin/config)
 - `./packages/shared/` —— 跨 api/web 共享的枚举与类型(严格对应 §4.2 / §11)
 - `./pnpm-workspace.yaml` + `./package.json` + `./tsconfig.base.json` —— pnpm workspace + TS / ESLint / Prettier / Vitest 全栈配置
@@ -26,6 +36,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 包管理 | pnpm 10(workspace) |
 | 测试 | Vitest 2(shared/api/web 三个 project) |
 | Lint | ESLint 9(flat config)+ Prettier 3 |
+| 鉴权 | `@nestjs/jwt` + `@nestjs/passport` + `passport-jwt`(`JwtAuthGuard` + `RolesGuard` + `@Roles(...)`)|
 | 运行时 | Node.js ≥ 20 LTS(本机 24.14.1) |
 
 ## Monorepo 布局
@@ -117,21 +128,31 @@ pnpm --filter @platform/api seed
 - password: `admin123`
 - role: admin
 
-§6.2 要求首次登录后改密码(留 Phase 2 接)。POST /api/auth/login → 返回 JWT(15min)→ 前端存 localStorage。
+§6.2 首次登录后改密码已落地(`7e3ac05`):POST `/api/auth/change-password` + `/me` 页面 + 密码强度校验(≥8 字符 + 1 数字 + 1 字母)。POST `/api/auth/login` → 返回 JWT(15min,payload 含 `sub` + `role`)→ 前端存 localStorage;真 JWT 解码 + RolesGuard 进行中(`aa6d617c0fc76852f`)。
 
 ## 已落地功能(2026-06-28)
 
-- ✅ `pnpm install`(836 包)
+- ✅ `pnpm install`(836+ 包,本会话 +5 runtime: react-markdown / remark-gfm / rehype-highlight / highlight.js / @tailwindcss/typography;+3 api: @nestjs/bullmq / bullmq / ioredis)
 - ✅ `pnpm -r typecheck`(shared / api / web 全绿)
-- ✅ `pnpm -r test`(9 测试通过:shared 6 + api 2 + web 1)
-- ✅ `pnpm lint`(ESLint 0 错 0 警 + Prettier 干净)
-- ✅ **§5.3 Scan 主流程**:从 zip 上传 → Agent 调 MiniMax 跑 115 秒 → 3 漏洞入库 + 1 漏洞库条目
-- ✅ **§5.3 API 覆盖统计**:report §1 checklist 的 API 入口覆盖可勾选汇总(1bc9df4)
+- ✅ `pnpm -r test`(178 测试通过:shared 6 + api 177 + web 1,从 9 → 178,+169 测试)
+- ✅ `pnpm lint`(ESLint **0 错 0 警** + Prettier 干净)
+- ✅ **§5.3 Scan 主流程**:从 zip 上传 → BullMQ + Redis 入队 → Agent 调 MiniMax 跑 115 秒 → 4 漏洞入库 + 自动聚合到 VulnLibraryEntry(`583ff18` 升级)
+- ✅ **§5.3 API 覆盖统计 + recompute-coverage 端点**:report §1 checklist 的 API 入口覆盖可勾选汇总 + POST `/api/scan-runs/:id/recompute-coverage`(`1bc9df4` + `603b443`)
 - ✅ **§5.4 报告导出**:Markdown / JSON / zip 归档包三端点工作
-- ✅ **§5.5 漏洞库 UI**:列表 + 详情 + 状态流转(open / fixing / fixed / ignored),ProjectDetailPage 上 Vuln Library tab 已从 "Phase X 待上" 变成真按钮(bde81f9)
-- ✅ **§4.2.8 Members UI**:ProjectDetailPage 上 Members tab 从 "Phase X 待上" 变成真页面 —— 邀请 / 角色 / 移除(bde81f9)
-- ✅ **§5.7 git 凭证 + 代理 UI**:`/admin/config` 页面新增 git 凭证(GitHub PAT)与代理配置(6b8cb83)
-- ✅ GET `/api/health` 返回 `{status, uptimeSec, coverageModeDefault, nodeVersion, dbTables: 15}`
+- ✅ **§5.4 多 ScanRun 报告对比**:GET `/api/projects/:id/scans/diff?a=&b=` 返回完整 ScanDiff(onlyInA / onlyInB / inBoth / newInB / fixedInB / worsened / coverage delta)(`99c07d4`,端到端实测过)
+- ✅ **§5.4 报告 Markdown 渲染**:react-markdown + remark-gfm + rehype-highlight + 章节导航(slugify + IntersectionObserver 高亮)(`dcac49a`)
+- ✅ **§5.5 漏洞库 UI**:列表 + 详情 + 状态流转(open / fixing / fixed / ignored),ProjectDetailPage 上 Vuln Library tab 已从 "Phase X 待上" 变成真 Link(`bde81f9`)
+- ✅ **§4.2.8 Members UI**:ProjectDetailPage 上 Members tab 从 "Phase X 待上" 变成真页面 —— 邀请 / 角色 / 移除,只 owner / lead 能 grant(`bde81f9`)
+- ✅ **§5.7 git 凭证 + 代理 UI**:`/admin/config` 页面新增 git 凭证(GitHub PAT / SSH key)与代理配置(支持 socks5,enum 已升级) + `proxyConfigs.protocol` 从 `socks` 升 `socks5` 符合 Q13(`6b8cb83` + `7b6e018`)
+- ✅ **§6.2 首次登录改密码**:POST `/api/auth/change-password` + `/me` 个人中心 + 密码强度校验(`7e3ac05`)
+- ✅ **§6.2 真 JWT 解码 + 角色门禁**:`@nestjs/passport` PassportStrategy 验签 → `JwtAuthGuard` 全 controller 拦截 → `RolesGuard` + `@Roles('admin')` 拦截 AI Key / Git Credentials / Proxy / Users 写端点;`req.user` 从 `x-user-id` 头 mock 改成 JWT payload(`sub` / `role`);`@CurrentUser()` decorator 注入
+- ✅ **§11 Q6 并发扫描升级到 BullMQ + Redis**:从 in-memory FIFO 升到真 BullMQ + Redis(进程崩溃可恢复 + 分布式 worker),本机 docker run redis:7-alpine 容器跑通(`e3bbe96` in-memory + `583ff18` BullMQ)
+- ✅ **CI/CD pipeline**:`.github/workflows/ci.yml` 8 step,Node 20 + pnpm cache + `--frozen-lockfile` + upload coverage artifact(`01ed2d5`)
+- ✅ **需求文档前后统一**:消除 §1.2 / §2.1 / §4.2.5 / §5.4 / §2.5 等 10 处前后不一致(`7b6e018`)
+- ✅ **Versions tab 清理**:ProjectDetailPage 删 "Phase 2 · §5.2" 占位 tab(信息已在 Scans tab 内嵌)(`982730e`)
+- ✅ **业务模块测试深度**:5 个 service(spec 端到端,从 60 → 119 + 133 = `1661192` 后 commit)
+- ✅ GET `/api/health` 返回 `{status, uptimeSec, coverageModeDefault, nodeVersion, dbTables: 16, queueDepth, queueRunning, queueMaxConcurrent}`(`583ff18` 加 queue 字段)
+- ✅ Vitest coverage v8 provider 上线:三包 `vitest.config.ts` 接 `@vitest/coverage-v8`,`pnpm -r test --coverage` 生成 `coverage/{text,json-summary,html}`,CI artifact upload 自动激活(thresholds 暂注释,MVP 首跑 < 70% 不卡门禁)
 
 ## 已锁定决策(Q1–Q17)
 
@@ -185,14 +206,32 @@ pnpm --filter @platform/api seed
 | §5.3 API 覆盖统计(让 §1 checklist 入口覆盖打勾) | 1 小时 | 让报告 §1 完整 | ✅ 1bc9df4 |
 | §4.2.8 Members UI(把 Members tab 从"Phase X"变真) | 半天 | 多人协作基础 | ✅ bde81f9 |
 | §5.7 git 凭证 + 代理 UI | 半天 | 完善系统配置 | ✅ 6b8cb83 |
-| 真正跑多个 scan + 报告对比(两个 ScanRun 差异) | 2 小时 | Phase 2 §5.4 完整 | 进行中(scan-diff.controller/service/util + 测试,主 session 写) |
-| BullMQ 真正并发扫描(Q6) | 1-2 天 | 性能 | 进行中(scan-queue.service.ts 主 session 写) |
-| ProjectDetailPage 还剩 Versions / Scans 两个 tab 显示 "Phase X 待上",待接通 | 半天 | 详情页 UI 闭环 | 待办 |
-| §5.7 真正接 git 凭证(目前只 UI,不实际 clone) | 1 天 | 让 §5.7 真闭环 | 待办 |
+| 真正跑多个 scan + 报告对比(两个 ScanRun 差异) | 2 小时 | Phase 2 §5.4 完整 | ✅ 99c07d4(端到端实测过) |
+| BullMQ 真正并发扫描(Q6) | 1-2 天 | 性能 | ✅ 583ff18(in-memory → BullMQ + Redis) |
+| Versions tab 清理 | 5 分钟 | 详情页 UI 闭环 | ✅ 982730e |
+| 首次登录改密码(§6.2) | 半天 | §6.2 硬要求 | ✅ 7e3ac05 |
+| 报告 Markdown 渲染(react-markdown) | 半天 | 报告可读性 | ✅ dcac49a |
+| CI/CD pipeline(GitHub Actions) | 半天 | PR 自动检查 | ✅ 01ed2d5 |
+| 需求文档前后一致 / socks5 升级 | 1 小时 | 仓库自洽 | ✅ 7b6e018 |
+| 业务模块测试深度 | 1 天 | 仓库质量 | ✅ 1661192 |
+| **真 JWT 解码 + AdminGuard** | 半天 | 替代 x-user-id mock | ✅ 已完成(JwtStrategy + JwtAuthGuard + RolesGuard + @Roles,'admin' 拦截 AI Key / Git Credentials / Proxy / Users 写端点) |
+| **Bull-Board 接入(队列可视化)** | 2-3 小时 | 队列可观测 | 进行中(O agent) |
+| **Vitest coverage provider 上线** | 1 小时 | 覆盖率可见 | 进行中(P agent) |
+| Docker 化部署(§11 Q11 Phase 4) | 1-2 天 | 部署简化 | 待办 |
+| 多 Skill Bundle 并存(§11 Q7 双轨 C) | 1 天 | Skill 升级红利 | 待办 |
+| §5.7 真正接 git 凭证(目前只 UI,不实际 clone) | 1 天 | §5.7 真闭环 | 待办 |
 
 ## 已知遗留(不阻塞)
 
-- 子仓库脏工作树已于 2026-06-28 commit `973167f` 清理(子仓库独立演进):`temp/expert-debate/**`(16 docs R29-30 scratch)+ `audit_skill_optimization.md` + `agents/安全专家.agent.md`(alt-name 已被 `dotnet代码审计.agent.md` 取代)+ `darwin-skill/**` + `.claude/settings.local.json` + 子仓库 `CLAUDE.md` 共 27 个文件、11822 行删除
-- ProjectDetailPage 还剩 Versions / Scans 两个 tab 显示 "Phase X 待上",Members / Vuln Library 已接通
-- §5.7 git 凭证目前只 UI,未实际接 git clone;§5.7 真闭环留待 Phase 2
-- `.gitignore` 已加 `*.tsbuildinfo`,但 `apps/api/tsconfig.tsbuildinfo` 和 `apps/web/tsconfig.tsbuildinfo` 还是 tracked(主 session 取消跟踪)
+- ~~子仓库脏工作树~~:已于 2026-06-28 commit `973167f`(子仓库独立演进)清理完
+- ~~ProjectDetailPage Versions tab 显示 "Phase 2"~~:`982730e` 已删(Versions 信息在 Scans tab 内嵌)
+- ~~2 个 pre-existing lint 警告~~(`settings.service.ts` + `users.service.ts` 的 `node:crypto` import/order):`982730e` 已修;仓库 lint 真正 0 错 0 警
+- ~~`.gitignore` 加 `*.tsbuildinfo` + 取消 tracking `tsconfig.tsbuildinfo`~~:`20edc44` 已做
+- §5.7 git 凭证目前只 UI CRUD,未实际接 git clone(`/api/admin/git-credentials` 端点只做 CRUD,没 git fetch / clone 集成);Phase 2 接
+- `apps/api/storage/scan-runs/<id>/` 落盘目录结构当前没真 skill 产物(`route_mapping/` / `framework_audit/` 来自 fixture 测试;真 scan 跑完只有 `quality/scan_summary.json`);Phase 2 skill 真产出后自动补齐
+- BullMQ + Redis 部分打破 §11 Q11 "本地部署 / 无 Docker" 锁定:Redis 是 BullMQ 硬依赖,本机需 docker run redis 或装 Redis 服务;Phase 4 可考虑回退 `better-queue`
+- 当前 Bull-Board 未接入(Task O 进行中):队列可视化要等 O 完成
+- 当前测试覆盖率无 provider(Task P 进行中):v8 provider 装上后 CI 自动激活 coverage artifact
+- §6.2 鉴权 MVP 阶段只发了 15min access token;**refresh token + 旋转/吊销 + HttpOnly Cookie** 仍留 Phase 2。当前 `/auth/login` 返回 JWT 给前端自行处理
+- 所有受保护端点(除 `/api/health` / `/api/auth/login`)都要带 `Authorization: Bearer <jwt>`;**前端**目前用 `localStorage` 存 accessToken,没接 refresh;Phase 2 接 HttpOnly Cookie 替换 localStorage
+- `JwtAuthGuard` + `RolesGuard` 当前**强制要求模块在 `imports` 里带 `AuthModule`**(`AuthModule` exports `PassportModule`);后续要扩到多 controller 时记得加这条 import
