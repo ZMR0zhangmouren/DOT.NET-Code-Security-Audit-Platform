@@ -12,10 +12,17 @@ import type {
 import { and, desc, eq } from 'drizzle-orm';
 
 import { DATABASE, type Db } from '../db/database.module.js';
-import { codeVersions, projects, scanRuns, skillBundleVersions } from '../db/schema.js';
+import {
+  codeVersions,
+  projects,
+  scanRuns,
+  skillBundleVersions,
+  vulnerabilities,
+} from '../db/schema.js';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { StorageService } from '../storage/storage.service.js'; // runtime ref (NestJS DI)
 
+import { computeApiCoverage, type VulnLookup } from './coverage.util.js';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ScanQueueService } from './scan-queue.service.js'; // runtime ref (NestJS DI)
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -191,6 +198,44 @@ export class ScanService {
       triggeredBy: orig.triggeredBy,
       coverageMode: orig.coverageMode,
     });
+  }
+
+  /**
+   * §5.3 API 覆盖统计 —— 重新计算并写回 scanRuns 三个字段。
+   *
+   * 不跑 agent,只读 outputRoot 下的 route_mapping/ + framework_audit/ 产物
+   * + vulnerabilities 表,调 coverage.util.computeApiCoverage,写回
+   * apiCoverageStatus / controllerCoveragePercent / authCoveragePercent。
+   *
+   * 用例:
+   * - skill 产物后到 scan finalize 之后才落盘 → 调这个端点补算
+   * - 测试 / 调试:放进 fixture 后不需要重跑 115 秒 scan 就能验证整条数据流
+   * - Phase 2 接 framework×9 skill 真产物后,在路由 trace 完成后调一次
+   */
+  recomputeCoverage(id: string): ScanRunPublic {
+    const existing = this.get(id);
+    const vulnLookup: VulnLookup = (scanRunId) =>
+      this.db
+        .select({
+          filePath: vulnerabilities.filePath,
+          vulnType: vulnerabilities.vulnType,
+        })
+        .from(vulnerabilities)
+        .where(eq(vulnerabilities.scanRunId, scanRunId))
+        .all();
+    const coverage = computeApiCoverage(vulnLookup, id, existing.outputRoot);
+
+    this.db
+      .update(scanRuns)
+      .set({
+        apiCoverageStatus: coverage.apiCoverageStatus,
+        controllerCoveragePercent: coverage.controllerCoveragePercent,
+        authCoveragePercent: coverage.authCoveragePercent,
+      })
+      .where(eq(scanRuns.id, id))
+      .run();
+
+    return this.get(id);
   }
 
   private toPublic(r: ScanRunRow): ScanRunPublic {

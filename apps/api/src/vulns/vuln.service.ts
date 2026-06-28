@@ -5,7 +5,8 @@ import { eq } from 'drizzle-orm';
 import { DATABASE, type Db } from '../db/database.module.js';
 import { vulnerabilities } from '../db/schema.js';
 
-import type { VulnLibraryService } from './vuln-library.service.js'; // runtime ref (NestJS DI)
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { VulnLibraryService } from './vuln-library.service.js'; // runtime ref (NestJS DI resolves via VulnsModule providers)
 
 export interface VulnerabilityPublic {
   id: string;

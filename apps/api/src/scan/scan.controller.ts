@@ -49,4 +49,9 @@ export class ScanController {
   replay(@Param('id') id: string): ScanRunPublic {
     return this.scan.replay(id);
   }
+
+  @Post('scan-runs/:id/recompute-coverage')
+  recomputeCoverage(@Param('id') id: string): ScanRunPublic {
+    return this.scan.recomputeCoverage(id);
+  }
 }
