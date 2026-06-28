@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { desc, eq } from 'drizzle-orm';
@@ -138,5 +140,3 @@ export class UsersService {
     };
   }
 }
-
-import { randomBytes } from 'node:crypto';

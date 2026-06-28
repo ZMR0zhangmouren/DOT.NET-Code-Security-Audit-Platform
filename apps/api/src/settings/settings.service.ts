@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 
@@ -170,6 +172,3 @@ export class SettingsService {
     };
   }
 }
-
-// 延迟 import 避开 ESM cycle(crypto.util.ts 也要用)
-import { randomBytes } from 'node:crypto';

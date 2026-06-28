@@ -302,13 +302,6 @@ export default function ProjectDetailPage(): React.ReactElement {
             >
               Overview
             </button>
-            <span
-              className="inline-flex items-center gap-1 rounded px-3 py-1 text-sm text-muted-foreground"
-              data-testid="tab-versions"
-            >
-              Versions
-              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">Phase 2 · §5.2</span>
-            </span>
             <button
               type="button"
               onClick={() => setTab('scans')}
@@ -364,18 +357,32 @@ export default function ProjectDetailPage(): React.ReactElement {
                 <dd>{new Date(project.updatedAt).toLocaleString()}</dd>
               </dl>
               <div className="mt-6 border-t pt-4">
-                <h3 className="mb-2 text-sm font-semibold">后续章节(§5.2 / §5.3 / §4.2.8)</h3>
+                <h3 className="mb-2 text-sm font-semibold">
+                  已接通章节(§5.1 / §5.3 / §4.2.8 / §5.5 / §5.7)
+                </h3>
                 <ul className="space-y-1 text-xs text-muted-foreground">
                   <li>
-                    <strong>Versions (§5.2):</strong> CodeVersion 表已落库;zip 上传 UI 已在 Scans
-                    标签里
+                    <strong>项目 (5.1):</strong> CRUD + 删除 + 编辑;Owner 可改所有字段
                   </li>
                   <li>
-                    <strong>Scans (§5.3):</strong> 列表 + 实时页可用;Quality Gate 字段已显示
+                    <strong>Versions (5.2 P0 zip):</strong> CodeVersion 表已落库;zip 上传 UI 已在
+                    Scans 标签里(显示 N versions + 上传按钮);Phase 2 接私有 git / GitHub 拉取
                   </li>
                   <li>
-                    <strong>Members (§4.2.8):</strong> ProjectMember 表已落库;待接入成员管理
-                    UI(grant lead / contributor / viewer)
+                    <strong>Scans (5.3):</strong> 列表 + 实时页 + 报告 + 多 ScanRun 对比(5.4) +
+                    Quality Gate 字段已显示;入口覆盖统计(2026-06 commit 1bc9df4)
+                  </li>
+                  <li>
+                    <strong>Members (4.2.8):</strong> 列表 / grant by username / role 切换 /
+                    revoke(2026-06 commit bde81f9);仅 owner 或 lead 可改
+                  </li>
+                  <li>
+                    <strong>Vuln Library (5.5):</strong> 列表 + 详情 + 状态流转(2026-06 commit
+                    b8ddff4)
+                  </li>
+                  <li>
+                    <strong>系统配置 (5.7):</strong> AI Key + git 凭证 + 代理 + 用户管理 (2026-06
+                    commit 6b8cb83)
                   </li>
                 </ul>
               </div>
