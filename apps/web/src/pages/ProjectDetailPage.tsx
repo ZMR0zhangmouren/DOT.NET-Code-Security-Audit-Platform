@@ -199,19 +199,35 @@ export default function ProjectDetailPage(): React.ReactElement {
             </form>
           )}
 
-          <nav className="mb-4 flex gap-2 border-b">
-            <Button variant="ghost" className="rounded-b-none border-b-2 border-primary" disabled>
+          <nav className="mb-4 flex flex-wrap gap-2 border-b pb-2">
+            <Button
+              variant="ghost"
+              className="rounded-b-none border-b-2 border-primary"
+              data-testid="tab-overview"
+            >
               Overview
             </Button>
-            <Button variant="ghost" disabled>
+            <span
+              className="inline-flex items-center gap-1 rounded px-3 py-1 text-sm text-muted-foreground"
+              data-testid="tab-versions"
+            >
               Versions
-            </Button>
-            <Button variant="ghost" disabled>
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">Phase 2 · §5.2</span>
+            </span>
+            <span
+              className="inline-flex items-center gap-1 rounded px-3 py-1 text-sm text-muted-foreground"
+              data-testid="tab-scans"
+            >
               Scans
-            </Button>
-            <Button variant="ghost" disabled>
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">Phase 2 · §5.3</span>
+            </span>
+            <span
+              className="inline-flex items-center gap-1 rounded px-3 py-1 text-sm text-muted-foreground"
+              data-testid="tab-members"
+            >
               Members
-            </Button>
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">Phase 2 · §4.2.8</span>
+            </span>
           </nav>
 
           <section className="rounded-lg border bg-card p-6 text-sm">
@@ -225,9 +241,23 @@ export default function ProjectDetailPage(): React.ReactElement {
               <dt className="text-muted-foreground">Updated</dt>
               <dd>{new Date(project.updatedAt).toLocaleString()}</dd>
             </dl>
-            <p className="mt-4 text-muted-foreground">
-              Versions / Scans / Members 等标签页将在 §5.2 / §5.3 / §4.2.8 实施时接入。
-            </p>
+            <div className="mt-6 border-t pt-4">
+              <h3 className="mb-2 text-sm font-semibold">后续章节(§5.2 / §5.3 / §4.2.8)</h3>
+              <ul className="space-y-1 text-xs text-muted-foreground">
+                <li>
+                  <strong>Versions (§5.2):</strong> CodeVersion 表已落库;待接入 zip 上传 / git 拉取
+                  / GitHub 拉取
+                </li>
+                <li>
+                  <strong>Scans (§5.3):</strong> ScanRun / SkillExecution / 4 个 Quality Gate
+                  表已落库;待接入 @openai/agents Runner
+                </li>
+                <li>
+                  <strong>Members (§4.2.8):</strong> ProjectMember 表已落库;待接入成员管理 UI(grant
+                  lead / contributor / viewer)
+                </li>
+              </ul>
+            </div>
           </section>
         </>
       )}
