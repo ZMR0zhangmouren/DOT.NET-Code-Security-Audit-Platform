@@ -1,3 +1,13 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+
+# pnpm 10 默认禁止 native deps 的 build 脚本(防止 supply-chain attack);
+# 这里显式批准信任的包,让 better-sqlite3 / argon2 / msgpackr-extract / esbuild 编译 native binding。
+# 不在白名单的包会被 pnpm 警告"Ignored build scripts"且不编译,导致运行时找不到 .node。
+onlyBuiltDependencies:
+  - better-sqlite3
+  - argon2
+  - msgpackr-extract
+  - esbuild
+  - '@nestjs/core'
