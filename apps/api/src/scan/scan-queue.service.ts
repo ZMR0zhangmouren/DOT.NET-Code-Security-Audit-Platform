@@ -1,6 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
-import type { Job, Queue } from 'bullmq';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { type Job, type Queue } from 'bullmq'; // runtime ref(@InjectQueue 注入 Queue<ScanJobData> 需要 BullMQ 类在 emitDecoratorMetadata 时存在,import type 会让 ESM 擦除)
 
 export const SCAN_QUEUE_NAME = 'scan';
 export const SCAN_JOB_NAME = 'run';
