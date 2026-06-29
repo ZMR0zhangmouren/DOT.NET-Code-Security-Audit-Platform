@@ -72,4 +72,4 @@ start "" "http://localhost:5180" 2>nul
 REM Auto-close after 5 seconds (no user interaction needed)
 timeout /t 5 /nobreak >nul
 endlocal
-exit
+exit

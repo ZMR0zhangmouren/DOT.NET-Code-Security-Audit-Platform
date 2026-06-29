@@ -38,4 +38,4 @@ echo.
 echo Default login: admin / admin123 (run 'pnpm --filter @platform/api seed' first)
 echo.
 pause >nul
-endlocal
+endlocal
