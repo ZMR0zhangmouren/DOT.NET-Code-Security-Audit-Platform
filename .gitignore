@@ -46,4 +46,5 @@ storage/
 logs/
 
 # TypeScript 增量编译缓存(tsc --incremental / 项目引用)
-*.tsbuildinfo*.zip
+*.tsbuildinfo
+*.zip
