@@ -269,6 +269,101 @@ export class CodeVersionsService {
     }
     return this.get(cvId);
   }
+
+  /**
+   * §5.7 真接 GitHub REST tarball API —— 创建 sourceType='github' 的 code_versions,
+   * 委托 GitCloneService.downloadFromGitHub → GitHubService.downloadTarball
+   *
+   * 行为与 createFromGit 完全对齐:
+   *  - 先建占位 row(克隆失败时 row 仍可见)
+   *  - 调 clone;成功 → 写回 fileCount/locCount/sizeBytes/checksum
+   *  - 失败 → 写 cloneErrorMessage + 抛 BadRequestException
+   *
+   * sourceRef 标准化为 `owner/repo` 或 `owner/repo#ref`,便于前端展示
+   */
+  async createFromGitHub(input: {
+    projectId: string;
+    label: string;
+    owner: string;
+    repo: string;
+    ref?: string;
+    hostPattern?: string;
+    uploadedBy: string;
+  }): Promise<CodeVersionPublic> {
+    if (!input.label?.trim()) throw new BadRequestException('label is required');
+    if (!input.owner?.trim()) throw new BadRequestException('owner is required');
+    if (!input.repo?.trim()) throw new BadRequestException('repo is required');
+
+    // 1. 项目存在性校验
+    const project = this.db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.id, input.projectId))
+      .get();
+    if (!project) throw new NotFoundException(`project ${input.projectId} not found`);
+
+    // 2. 占位 row
+    const cvId = `cv-${Date.now().toString(36)}-${randomHex(4)}`;
+    const destDir = this.storage.codeVersionDir(cvId);
+    const now = Date.now();
+    const sourceRef = `${input.owner.trim()}/${input.repo.trim()}${
+      input.ref?.trim() ? `#${input.ref.trim()}` : ''
+    }`;
+
+    this.db
+      .insert(codeVersions)
+      .values({
+        id: cvId,
+        projectId: input.projectId,
+        versionLabel: input.label.trim(),
+        sourceType: 'github',
+        sourceRef,
+        fileCount: null,
+        locCount: null,
+        sizeBytes: null,
+        parentVersionId: null,
+        uploadedBy: input.uploadedBy,
+        uploadedAt: now,
+        checksum: `pending-${cvId}`, // 临时
+        clonedAt: null,
+        cloneErrorMessage: null,
+      })
+      .run();
+
+    // 3. 调 github
+    try {
+      const r = await this.gitClone.downloadFromGitHub({
+        owner: input.owner,
+        repo: input.repo,
+        ref: input.ref,
+        hostPattern: input.hostPattern ?? 'github.com',
+        destDir,
+        projectId: input.projectId,
+      });
+      this.db
+        .update(codeVersions)
+        .set({
+          fileCount: r.fileCount,
+          locCount: r.locCount,
+          sizeBytes: r.sizeBytes,
+          checksum: r.checksum,
+          clonedAt: now,
+          cloneErrorMessage: null,
+        })
+        .where(eq(codeVersions.id, cvId))
+        .run();
+    } catch (e) {
+      const msg =
+        e instanceof GitCloneError ? `[${e.code}] ${e.message}` : String((e as Error).message);
+      this.db
+        .update(codeVersions)
+        .set({ cloneErrorMessage: msg })
+        .where(eq(codeVersions.id, cvId))
+        .run();
+      throw new BadRequestException(`github tarball failed: ${msg}`);
+    }
+    return this.get(cvId);
+  }
 }
 
 /* -------------------------------------------------------------------------- */

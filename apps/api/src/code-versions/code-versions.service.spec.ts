@@ -405,3 +405,229 @@ describe('CodeVersionsService.createFromGit', () => {
     expect(fakeGitClone.cloneRepo).not.toHaveBeenCalled();
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/*          §5.7 createFromGitHub —— happy / AUTH_FAILED / NOT_FOUND / RATE_LIMITED     */
+/* -------------------------------------------------------------------------- */
+
+/** 拼一个能写出 .cs 文件的 fake downloadFromGitHub,模拟"克隆成功" */
+function happyDownload(reply: {
+  fileCount?: number;
+  locCount?: number;
+  sizeBytes?: number;
+  checksum?: string;
+}) {
+  return {
+    fn: async (input: { destDir: string }) => {
+      const { mkdirSync, writeFileSync } = await import('node:fs');
+      mkdirSync(input.destDir, { recursive: true });
+      writeFileSync(`${input.destDir}/file.cs`, 'class A {}\n', 'utf8');
+      return {
+        fileCount: reply.fileCount ?? 1,
+        locCount: reply.locCount ?? 1,
+        sizeBytes: reply.sizeBytes ?? 12,
+        checksum: reply.checksum ?? 'abc123',
+        downloadTimeMs: 5,
+      };
+    },
+  };
+}
+
+function makeFullFakeDbWithProject(projectId: string): {
+  rows: CvRow[];
+  insert: () => { values: (v: CvRow) => { run: () => void } };
+  update: () => { set: (v: Partial<CvRow>) => { where: (c: Cond) => { run: () => void } } };
+  select: () => {
+    from: () => {
+      where: (c: Cond) => { get: () => CvRow | undefined; all: () => CvRow[] };
+      get: () => CvRow | undefined;
+      all: () => CvRow[];
+    };
+  };
+} {
+  const rows: CvRow[] = [];
+  const fakeDb = {
+    rows,
+    insert: () => ({
+      values: (v: CvRow) => ({
+        run: () => {
+          rows.push(v);
+        },
+      }),
+    }),
+    update: () => ({
+      set: (v: Partial<CvRow>) => ({
+        where: (c: Cond) => ({
+          run: () => {
+            const target = rows.find((r) => matchesCond(r, c));
+            if (target) Object.assign(target, v);
+          },
+        }),
+      }),
+    }),
+    select: () => ({
+      from: () => ({
+        where: (c: Cond) => ({
+          get: () => rows.find((r) => matchesCond(r, c)),
+          all: () => rows.filter((r) => matchesCond(r, c)),
+        }),
+        get: () => rows[0],
+        all: () => rows,
+      }),
+    }),
+  };
+  // 注入项目行,NotFound 校验通过
+  rows.push({
+    id: projectId,
+    projectId,
+    versionLabel: '',
+    sourceType: 'zip',
+    sourceRef: '',
+    fileCount: null,
+    locCount: null,
+    sizeBytes: null,
+    parentVersionId: null,
+    uploadedBy: '',
+    uploadedAt: 0,
+    checksum: '',
+    clonedAt: null,
+    cloneErrorMessage: null,
+  });
+  return fakeDb;
+}
+
+describe('CodeVersionsService.createFromGitHub', () => {
+  it('happy path: downloadFromGitHub 成功 → row 写 fileCount/locCount/sizeBytes/checksum', async () => {
+    const fakeDb = makeFullFakeDbWithProject('p1');
+    const fakeStorage = createFakeStorage();
+    const dl = happyDownload({});
+    const fakeGitClone = {
+      cloneRepo: vi.fn(),
+      downloadFromGitHub: vi.fn(dl.fn),
+    };
+    const mod = await import('./code-versions.service.js');
+    const svc = new mod.CodeVersionsService(
+      fakeDb as never,
+      fakeStorage as never,
+      fakeGitClone as never,
+    );
+
+    const out = await svc.createFromGitHub({
+      projectId: 'p1',
+      label: 'main',
+      owner: 'owner',
+      repo: 'repo',
+      ref: 'main',
+      uploadedBy: 'user1',
+    });
+
+    expect(fakeGitClone.downloadFromGitHub).toHaveBeenCalledTimes(1);
+    // sourceRef 标准化为 owner/repo#ref
+    expect(out.sourceType).toBe('github');
+    expect(out.sourceRef).toBe('owner/repo#main');
+    expect(out.fileCount).toBe(1);
+    expect(out.sizeBytes).toBe(12);
+    expect(out.checksum).toBe('abc123');
+    expect(out.cloneErrorMessage).toBeNull();
+    // row 真的被 update 了 fileCount
+    const stored = (fakeDb.rows as CvRow[]).find((r) => r.sourceType === 'github')!;
+    expect(stored).toBeDefined();
+    expect(stored.fileCount).toBe(1);
+    expect(stored.checksum).toBe('abc123');
+  });
+
+  it('AUTH_FAILED (401): cloneErrorMessage 落 [AUTH_FAILED],抛 BadRequestException', async () => {
+    const fakeDb = makeFullFakeDbWithProject('p1');
+    const fakeStorage = createFakeStorage();
+    const fakeGitClone = {
+      cloneRepo: vi.fn(),
+      downloadFromGitHub: vi.fn(async () => {
+        const { GitCloneError } = await import('../git-clone/git-clone.service.js');
+        throw new GitCloneError('AUTH_FAILED', 'GitHub 凭证认证失败(401)');
+      }),
+    };
+    const mod = await import('./code-versions.service.js');
+    const svc = new mod.CodeVersionsService(
+      fakeDb as never,
+      fakeStorage as never,
+      fakeGitClone as never,
+    );
+
+    await expect(
+      svc.createFromGitHub({
+        projectId: 'p1',
+        label: 'main',
+        owner: 'owner',
+        repo: 'repo',
+        uploadedBy: 'user1',
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+
+    const stored = (fakeDb.rows as CvRow[]).find((r) => r.sourceType === 'github')!;
+    expect(stored).toBeDefined();
+    expect(stored.cloneErrorMessage).toMatch(/AUTH_FAILED.*401/);
+  });
+
+  it('NOT_FOUND (404): cloneErrorMessage 落 [NOT_FOUND],row 保留', async () => {
+    const fakeDb = makeFullFakeDbWithProject('p1');
+    const fakeStorage = createFakeStorage();
+    const fakeGitClone = {
+      cloneRepo: vi.fn(),
+      downloadFromGitHub: vi.fn(async () => {
+        const { GitCloneError } = await import('../git-clone/git-clone.service.js');
+        throw new GitCloneError('NOT_FOUND', 'GitHub 仓库不存在或无权访问(404)');
+      }),
+    };
+    const mod = await import('./code-versions.service.js');
+    const svc = new mod.CodeVersionsService(
+      fakeDb as never,
+      fakeStorage as never,
+      fakeGitClone as never,
+    );
+
+    await expect(
+      svc.createFromGitHub({
+        projectId: 'p1',
+        label: 'main',
+        owner: 'no-such-owner',
+        repo: 'no-such-repo',
+        uploadedBy: 'user1',
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+
+    const stored = (fakeDb.rows as CvRow[]).find((r) => r.sourceType === 'github')!;
+    expect(stored.cloneErrorMessage).toMatch(/NOT_FOUND.*404/);
+    expect(stored.fileCount).toBeNull();
+  });
+
+  it('RATE_LIMITED (429): cloneErrorMessage 落 [RATE_LIMITED]', async () => {
+    const fakeDb = makeFullFakeDbWithProject('p1');
+    const fakeStorage = createFakeStorage();
+    const fakeGitClone = {
+      cloneRepo: vi.fn(),
+      downloadFromGitHub: vi.fn(async () => {
+        const { GitCloneError } = await import('../git-clone/git-clone.service.js');
+        throw new GitCloneError('RATE_LIMITED', 'GitHub API 限流(429)');
+      }),
+    };
+    const mod = await import('./code-versions.service.js');
+    const svc = new mod.CodeVersionsService(
+      fakeDb as never,
+      fakeStorage as never,
+      fakeGitClone as never,
+    );
+
+    await expect(
+      svc.createFromGitHub({
+        projectId: 'p1',
+        label: 'main',
+        owner: 'owner',
+        repo: 'repo',
+        uploadedBy: 'user1',
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+
+    const stored = (fakeDb.rows as CvRow[]).find((r) => r.sourceType === 'github')!;
+    expect(stored.cloneErrorMessage).toMatch(/RATE_LIMITED.*429/);
+  });
+});

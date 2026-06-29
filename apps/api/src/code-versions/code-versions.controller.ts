@@ -41,6 +41,15 @@ interface FromGitDto {
   hostPattern?: string;
 }
 
+interface FromGithubDto {
+  projectId: string;
+  label: string;
+  owner: string;
+  repo: string;
+  ref?: string;
+  hostPattern?: string;
+}
+
 /**
  * §5.2 CodeVersion 上传 + 列表 + 详情
  *
@@ -130,13 +139,28 @@ export class CodeVersionsController {
   }
 
   /**
-   * §5.7 Phase 2 占位 —— 从 GitHub API 拉(暂未实现,留接口)
+   * §5.7 真接 GitHub REST tarball API
+   * body: { projectId, label, owner, repo, ref?, hostPattern? }
    */
   @Post('code-versions/from-github')
-  fromGithub(@CurrentUser() _user: AuthenticatedUser, @Body() _body: unknown): never {
-    void _user;
-    void _body;
-    throw new BadRequestException('from-github 尚未实现(Phase 2)');
+  fromGithub(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: FromGithubDto,
+  ): Promise<CodeVersionPublic> {
+    if (!body?.projectId) throw new BadRequestException('projectId is required');
+    if (!body?.label?.trim()) throw new BadRequestException('label is required');
+    if (!body?.owner?.trim()) throw new BadRequestException('owner is required');
+    if (!body?.repo?.trim()) throw new BadRequestException('repo is required');
+    const uploadedBy = user?.sub ?? 'unknown';
+    return this.cv.createFromGitHub({
+      projectId: body.projectId,
+      label: body.label.trim(),
+      owner: body.owner.trim(),
+      repo: body.repo.trim(),
+      ref: body.ref?.trim() || undefined,
+      hostPattern: body.hostPattern?.trim() || undefined,
+      uploadedBy,
+    });
   }
 }
 

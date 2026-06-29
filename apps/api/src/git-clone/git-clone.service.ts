@@ -35,6 +35,9 @@ import { decryptSecret, getMasterKey } from '../common/crypto.util.js';
 import { DATABASE, type Db } from '../db/database.module.js';
 import { gitCredentials } from '../db/schema.js';
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { DownloadTarballResult, GitHubService } from './github.service.js'; // runtime ref (NestJS DI 反射需要运行时类型元数据,import type 会被 ESM 擦除导致 DI 找不到 provider)
+
 const execFileAsync = promisify(execFile) as (
   file: string,
   args: string[],
@@ -50,6 +53,10 @@ export type GitCloneErrorCode =
   | 'DISK_FULL'
   | 'INVALID_URL'
   | 'GIT_NOT_FOUND'
+  // §5.7 from-github(github REST API)专用
+  | 'NOT_FOUND'
+  | 'RATE_LIMITED'
+  | 'SERVER_ERROR'
   | 'UNKNOWN';
 
 export class GitCloneError extends Error {
@@ -140,7 +147,10 @@ export function injectHttpsToken(url: string, username: string, token: string): 
 export class GitCloneService {
   private readonly logger = new Logger(GitCloneService.name);
 
-  constructor(@Inject(DATABASE) private readonly db: Db) {}
+  constructor(
+    @Inject(DATABASE) private readonly db: Db,
+    private readonly github?: GitHubService,
+  ) {}
 
   /**
    * 找一条匹配 hostPattern 的活跃凭证(精确 > 通配符 `*`)
@@ -296,6 +306,27 @@ export class GitCloneService {
   /** Phase 2 占位 */
   async pullRepo(_input: { sourceRef: string; destDir: string }): Promise<never> {
     throw new GitCloneError('UNKNOWN', 'pullRepo 尚未实现(Phase 2)');
+  }
+
+  /**
+   * §5.7 真接 GitHub tarball API —— 委托给 GitHubService
+   * 保留这个薄壳以保持 code-versions.service 对 GitCloneService 的单一依赖入口
+   */
+  async downloadFromGitHub(input: {
+    owner: string;
+    repo: string;
+    ref?: string;
+    hostPattern?: string;
+    destDir: string;
+    projectId?: string;
+  }): Promise<DownloadTarballResult> {
+    if (!this.github) {
+      throw new GitCloneError(
+        'UNKNOWN',
+        'GitHubService 未注入(单测路径);生产环境通过 CodeVersionsModule → GitCloneModule 自动注入',
+      );
+    }
+    return this.github.downloadTarball(input);
   }
 
   private decryptRow(row: {
