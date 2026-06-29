@@ -166,8 +166,12 @@ export class ReportService {
     lines.push(
       `- [${g.run.auditSurfaceStatus === 'COMPLETED' ? 'x' : ' '}] 专项覆盖 (auditSurfaceStatus=${g.run.auditSurfaceStatus})`,
     );
+    const entryCovPct =
+      g.run.controllerCoveragePercent === null
+        ? 'N/A'
+        : (g.run.controllerCoveragePercent / 100).toFixed(2) + '%';
     lines.push(
-      `- [${g.run.apiCoverageStatus === 'COMPLETE' ? 'x' : ' '}] 入口覆盖 (apiCoverageStatus=${g.run.apiCoverageStatus})`,
+      `- [${g.run.apiCoverageStatus === 'COMPLETE' ? 'x' : ' '}] 入口覆盖 (controllers: ${entryCovPct}, apiCoverageStatus=${g.run.apiCoverageStatus})`,
     );
     lines.push(
       `- [${g.run.gateDecision === 'PASS' ? 'x' : ' '}] 质量门禁 (gateDecision=${g.run.gateDecision})`,

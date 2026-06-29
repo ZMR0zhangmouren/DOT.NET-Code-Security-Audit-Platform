@@ -316,10 +316,16 @@ export default function ScanPage(): React.ReactElement {
               <dd>{run.gateDecision}</dd>
               <dt className="text-muted-foreground">controller coverage</dt>
               <dd>
-                {run.controllerCoveragePercent !== null ? `${run.controllerCoveragePercent}%` : '-'}
+                {run.controllerCoveragePercent !== null
+                  ? `${(run.controllerCoveragePercent / 100).toFixed(2)}%`
+                  : '-'}
               </dd>
               <dt className="text-muted-foreground">auth coverage</dt>
-              <dd>{run.authCoveragePercent !== null ? `${run.authCoveragePercent}%` : '-'}</dd>
+              <dd>
+                {run.authCoveragePercent !== null
+                  ? `${(run.authCoveragePercent / 100).toFixed(2)}%`
+                  : '-'}
+              </dd>
             </dl>
           </div>
         </section>

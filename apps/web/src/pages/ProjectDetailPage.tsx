@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import ProjectMembersSection from '@/components/ProjectMembersSection';
 import ScanRunNewDialog from '@/components/ScanRunNewDialog';
@@ -45,6 +45,7 @@ interface ProjectMember {
 export default function ProjectDetailPage(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -336,7 +337,11 @@ export default function ProjectDetailPage(): React.ReactElement {
             </button>
             <Link
               to={`/projects/${id}/vuln-library`}
-              className="inline-flex items-center gap-1 rounded px-3 py-1 text-sm text-muted-foreground hover:bg-muted"
+              className={
+                location.pathname.includes('/vuln-library')
+                  ? 'inline-flex items-center gap-1 rounded-t border-b-2 border-primary bg-card px-3 py-1 text-sm font-medium'
+                  : 'inline-flex items-center gap-1 rounded px-3 py-1 text-sm text-muted-foreground hover:bg-muted'
+              }
               data-testid="tab-vuln-library"
             >
               Vuln Library
