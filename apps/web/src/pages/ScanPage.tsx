@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { useScanSocket } from '@/hooks/useScanSocket';
-import { api, ApiError } from '@/lib/api';
+import { api, ApiError, getToken } from '@/lib/api';
 import { coverageClass, gateClass, scanStatusClass, type ScanRunPublic } from '@/lib/scanTypes';
 
 /**
@@ -102,8 +102,21 @@ export default function ScanPage(): React.ReactElement {
     }
   }
 
+  const [fileLogs, setFileLogs] = useState<string | null>(null);
+
   const isTerminal =
     run?.status === 'succeeded' || run?.status === 'failed' || run?.status === 'canceled';
+
+  useEffect(() => {
+    if (isTerminal && runId && run?.logPath) {
+      fetch(`/api/scan-runs/${runId}/logs`, {
+        headers: { authorization: `Bearer ${getToken() ?? ''}` },
+      })
+        .then((r) => (r.ok ? r.text() : ''))
+        .then((t) => setFileLogs(t))
+        .catch(() => {});
+    }
+  }, [isTerminal, runId, run?.logPath]);
 
   const percent = lastProgress?.scanRunId === runId && lastProgress ? lastProgress.percent : null;
   const stage =
@@ -273,14 +286,16 @@ export default function ScanPage(): React.ReactElement {
               </Button>
             </div>
             <pre className="h-64 overflow-auto rounded bg-muted p-3 text-xs" data-testid="scan-log">
-              {logs.length === 0
-                ? '[INFO] waiting for scan:log events...\n[INFO] ws status: ' + wsStatus + '\n'
-                : logs
-                    .map(
-                      (l) =>
-                        `[${l.level.toUpperCase()}] ${new Date(l.ts).toISOString()} ${l.message}`,
-                    )
-                    .join('\n')}
+              {fileLogs && logs.length === 0
+                ? fileLogs
+                : logs.length === 0
+                  ? '[INFO] waiting for scan:log events...\n[INFO] ws status: ' + wsStatus + '\n'
+                  : logs
+                      .map(
+                        (l) =>
+                          `[${l.level.toUpperCase()}] ${new Date(l.ts).toISOString()} ${l.message}`,
+                      )
+                      .join('\n')}
               <div ref={logEndRef} />
             </pre>
           </div>

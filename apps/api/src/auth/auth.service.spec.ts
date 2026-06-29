@@ -177,7 +177,7 @@ describe('AuthService.login (§6.2)', () => {
     // jwt payload 包含 sub / username / role(Q15/Q17 锁定的 4 角色枚举)
     const signCall = jwt.signAsync.mock.calls[0]!;
     expect(signCall[0]).toEqual({ sub: 'usr-1', username: 'alice', role: 'admin' });
-    expect(signCall[1]).toEqual({ expiresIn: '15m' });
+    expect(signCall[1]).toEqual({ expiresIn: '8h' });
   });
 
   it('happy path: 更新 lastLoginAt(走 update chain)', async () => {

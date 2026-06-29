@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import type { CoverageMode } from '@platform/shared';
 
@@ -31,6 +32,16 @@ interface CreateScanDto {
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class ScanController {
+  @Get('scan-runs/:id/logs')
+  logs(@Param('id') id: string): string {
+    const run = this.scan.get(id);
+    if (!run.logPath) return '';
+    try {
+      return readFileSync(run.logPath, 'utf8');
+    } catch {
+      return '';
+    }
+  }
   constructor(
     private readonly scan: ScanService,
     private readonly skillBundles: SkillBundlesService,

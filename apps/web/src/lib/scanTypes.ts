@@ -53,7 +53,7 @@ export interface ScanRunPublic {
   controllerCoveragePercent: number | null;
   authCoveragePercent: number | null;
   outputRoot: string;
-}
+  }
 
 // §5.3 Skill Bundle —— 选取 active 版本触发扫描
 export interface SkillBundleVersion {

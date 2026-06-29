@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { writeFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, appendFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { Inject, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
@@ -42,6 +42,7 @@ interface ResolvedAiKey {
 }
 
 /** 在内存里跟踪正在运行的 ScanRun,支持取消信号 */
+const scanLogs = new Map<string, string[]>();
 const runningScans = new Map<string, { aborted: boolean }>();
 
 @Injectable()
@@ -565,6 +566,12 @@ export class ScanRunnerService implements OnModuleDestroy {
       }
     }
 
+    // 持久化日志:把内存中的所有 emitLog 写到 scan.log,存到 DB
+    const logBuf = scanLogs.get(scanRunId) ?? [];
+    const logPath = join(outputRoot, 'scan.log');
+    writeFileSync(logPath, logBuf.join('\n'));
+    scanLogs.delete(scanRunId);
+
     this.db
       .update(scanRuns)
       .set({
@@ -577,6 +584,7 @@ export class ScanRunnerService implements OnModuleDestroy {
         authCoveragePercent: coverage.authCoveragePercent,
         pipelineExecution: 'COMPLETED',
         gateDecision: 'PASS',
+        logPath,
       })
       .where(eq(scanRuns.id, scanRunId))
       .run();

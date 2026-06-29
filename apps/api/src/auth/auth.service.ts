@@ -95,7 +95,7 @@ export class AuthService {
       username: found.username,
       role: found.role,
     };
-    const accessToken = await this.jwt.signAsync(payload, { expiresIn: '15m' });
+    const accessToken = await this.jwt.signAsync(payload, { expiresIn: '8h' });
     return {
       accessToken,
       user: {

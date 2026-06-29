@@ -50,6 +50,7 @@ export interface ScanRunPublic {
   controllerCoveragePercent: number | null;
   authCoveragePercent: number | null;
   outputRoot: string;
+  logPath: string | null;
 }
 
 interface ScanRunRow {
@@ -299,6 +300,7 @@ export class ScanService {
       controllerCoveragePercent: r.controllerCoveragePercent,
       authCoveragePercent: r.authCoveragePercent,
       outputRoot: r.outputRoot,
+      logPath: r.logPath,
     };
   }
 }
