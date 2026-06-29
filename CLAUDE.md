@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 仓库当前状态(2026-06-29)
 
-§5.1–§5.7 全章节 + §11 Q6(BullMQ + Redis + Bull-Board)+ §11 Q7(多 Skill Bundle 并存 + replay-with-latest)+ §11 Q13(代理 / git 凭证)+ §5.4 多 ScanRun 对比 + §5.3 API 覆盖端到端 + §6.2 首次登录改密码 + §6.2 真 JWT 解码 + AdminGuard + §5.4 报告 Markdown 渲染 + §5.7 真接 git clone + CI/CD pipeline + Vitest coverage v8 provider 全部落地;仓库 431 测试通过(shared 6 / api 382 / web 43)/ 0 错 0 警 / typecheck 全绿 / coverage v8 provider 上线(shared+web 100% 启用阈值 / api 57% 阈值注释保留)。本会话 23 commit(`952452d` → `36aee78`,自 `b8ddff4` 上一轮休息点起)。端到端可跑通:
+§5.1–§5.7 全章节 + §11 Q6(BullMQ + Redis + Bull-Board)+ §11 Q7(多 Skill Bundle 并存 + replay-with-latest)+ §11 Q13(代理 / git 凭证)+ §5.4 多 ScanRun 对比 + §5.3 API 覆盖端到端 + §6.2 首次登录改密码 + §6.2 真 JWT 解码 + AdminGuard + §5.4 报告 Markdown 渲染 + §5.7 真接 git clone + §5.7 真接 from-github(GitHub REST tarball)+ §11 Q11 Phase 4 Docker 化部署(3 服务 multi-stage build)+ CI/CD pipeline + Vitest coverage v8 provider + thresholds 强制门禁(api 覆盖率 80.18%,已启用且通过)全部落地。**本会话 30 commit(`952452d` → `4dd7523`,自 `b8ddff4` 上一轮休息点起),454 测试通过(shared 6 / api 405 / web 43),0 错 0 警,typecheck 全绿**。本会话第二轮 commit(`60910c9`→`4dd7523`):`60910c9`(from-github)+`d1901b8`(覆盖率 80.18%)+`9b495fe`(Docker)+`8ab3842`(CLAUDE.md sync)+ `fa71693`(pnpm-workspace.yaml)+ `7bf49eb`(3 DI bug)+ `4dd7523`(scan-queue + scan-processor)。端到端可跑通:
 
 - 上传 zip → 触发 BullMQ + Redis 队列 → 115 秒 → 漏洞入库 + 自动聚合到 VulnLibraryEntry
 - 多 ScanRun 对比(端到端实测,DB 真写 + redis 真跑 + diff 端点返回完整 ScanDiff)
@@ -283,10 +283,15 @@ pnpm --filter @platform/api seed
 | api 测试覆盖率 57% → 70%(启用阈值) | 半天 | 质量门禁 | 待办(`36aee78` 阈值注释保留) |
 | ~~§5.7 from-github 占位 → 真支持~~ ✅ | — | — | 已落地(`GitHubService` + 28 个新单测,凭证优先级 env > git_credentials) |
 | Docker 化部署(§11 Q11 评估) | 1-2 天 | 部署简化 | 待评估(§11 Q11 锁定 "无 Docker",打破需决策) |
-| **Phase 2 e2e**(api 端 supertest + web 端 RTL) | 2-3 天 | api 覆盖率破 70% | 待办 |
+| **§11 Q11 Phase 4 Docker 化部署** | 1-2 天 | 部署简化 | ✅ `9b495fe`(`apps/api/Dockerfile` 多阶段 build + alpine musl better-sqlite3 编译 + `apps/web/Dockerfile` nginx serve + `docker-compose.yml` 3 服务 + `docker-entrypoint.sh` 自动迁移/seed + `docs/DOCKER.md` 使用指南);**api NestJS 启动期 pre-existing `import type` DI bug 已修(`7bf49eb` + `4dd7523`),Docker 化实际可用** |
+| **Phase 2 e2e**(api 端 supertest + web 端 RTL) | 2-3 天 | api 覆盖率破 70% | 待办(已有 80.18%,Phase 2 e2e 可推到 95%+) |
 | **Phase 3 漏洞趋势图**(VulnLibrary 按时间聚合) | 1-2 天 | 安全可视化 | 待办 |
 | refresh-token + 旋转/吊销 + HttpOnly Cookie(替换 localStorage) | 1 天 | §6.2 真闭环 | 待办 |
 | Skill 升级自动跑一遍重扫(CI hook) | 2-3 小时 | §11 Q7 自动兑现 | 待办 |
+| Phase 5 repo-wide `import type Service` 扫描 | 30 分钟 | 一劳永逸 | ✅ `7bf49eb` + `4dd7523`(roles.guard / projects.controller + scan-queue / scan-processor)|
+| pnpm-workspace.yaml `onlyBuiltDependencies` | 5 分钟 | CI 友好 | ✅ `fa71693`(修 better-sqlite3 等 native deps install 失败) |
+| 真 git clone e2e(用真公开 repo + 真凭证) | 2 小时 | 兑现 §5.7 真闭环 | 待办(目前 `from-git` / `from-github` 已真实现,只缺实测) |
+| 仓库 push origin main | 2 分钟 | 远程备份 | 待办(`git push` 需用户在 CLAUDE.md 给 git remote URL) |
 
 ## 已知遗留(不阻塞)
 
@@ -301,6 +306,10 @@ pnpm --filter @platform/api seed
 - ~~x-user-id mock 鉴权~~:`2f83a11` 替换成 JWT payload
 - ~~当前 Bull-Board 未接入~~:`f2dda10` `/admin/queue` 上线
 - ~~当前测试覆盖率无 provider~~:`fdb75f3` + `36aee78` v8 provider 上线 + 阈值上抬
+- ~~api 覆盖率 57% 阈值未启用~~:`d1901b8` 提升到 80.18% 后 thresholds 强制门禁启用且通过
+- ~~better-sqlite3 native binding 缺失(导致 API 启动报 'Could not locate bindings file')~~:`fa71693`(`pnpm-workspace.yaml` 加 `onlyBuiltDependencies`)允许 install 期 build;Windows 中文路径下 node-gyp mojibake 仍编译失败,所以手动下载 Node 24 ABI v137 prebuilt → `node_modules/.pnpm/better-sqlite3@12.11.1/node_modules/better-sqlite3/build/Release/better_sqlite3.node`(1.9MB,untracked / 不进 commit,Phase 5 写 `scripts/install-native-deps.sh`)
+- ~~3 个 NestJS DI 'Function not found' bug(API 启动报 'argument Function')~~:`7bf49eb` 修了 `roles.guard.ts`(`import type Reflector` → runtime)+ `projects.controller.ts`(`import type ProjectsService` → runtime)+ `auth.module.ts`(清残留 unused imports)
+- ~~scan-queue / scan-processor 同样 `import type` bug(没 DI 注册但 BullMQ 内部 metadata 需要)~~:`4dd7523`(Phase 5 repo-wide 扫的第二批)`fac71693`(pnpm workspace)→`4dd7523` 已是 final commit
 
 ### 未修(新 / 遗留)
 
