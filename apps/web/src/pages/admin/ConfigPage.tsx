@@ -406,10 +406,12 @@ export default function ConfigPage(): React.ReactElement {
         body.password = proxyPassword || undefined;
       }
       if (testUrl.trim()) body.testUrl = testUrl.trim();
-      const result = await api.post<{ ok: boolean; message: string; latencyMs: number; details?: string }>(
-        '/admin/proxy/test',
-        Object.keys(body).length > 0 ? body : undefined,
-      );
+      const result = await api.post<{
+        ok: boolean;
+        message: string;
+        latencyMs: number;
+        details?: string;
+      }>('/admin/proxy/test', Object.keys(body).length > 0 ? body : undefined);
       setTestResult(
         result.ok
           ? `✅ Connected (${result.latencyMs}ms)\n${result.message}${result.details ? '\n' + result.details : ''}`
@@ -932,21 +934,7 @@ export default function ConfigPage(): React.ReactElement {
       <section className="mb-6">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Network Proxy</h2>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                void testProxy();
-              }}
-              data-testid="proxy-test"
-            >
-              Test Connection
-            </Button>
-            {proxyCfg && (
-              <Button onClick={() => openProxyEdit(proxyCfg)} data-testid="proxy-edit">
-                Edit
-              </Button>
-            )}
+          <div className="flex gap-2 flex-wrap items-center">
             <input
               type="text"
               placeholder="Test URL (e.g. https://www.baidu.com)"
@@ -959,7 +947,9 @@ export default function ConfigPage(): React.ReactElement {
               size="sm"
               variant="outline"
               disabled={testRunning}
-              onClick={() => { void testProxy(); }}
+              onClick={() => {
+                void testProxy();
+              }}
               data-testid="proxy-test"
             >
               {testRunning ? 'Testing...' : 'Test'}
