@@ -49,7 +49,8 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, init: RequestInit & { auth?: boolean } = {}): Promise<T> {
   const headers = new Headers(init.headers ?? {});
-  if (init.body && !headers.has('content-type')) {
+  // FormData 让浏览器自动设 multipart/form-data + boundary,不要覆盖
+  if (init.body && !(init.body instanceof FormData) && !headers.has('content-type')) {
     headers.set('content-type', 'application/json');
   }
   const token = getToken();

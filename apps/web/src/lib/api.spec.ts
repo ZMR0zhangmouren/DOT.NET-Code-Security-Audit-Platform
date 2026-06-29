@@ -103,9 +103,8 @@ describe('lib/api.ts', () => {
       expect(init.body).toBe(JSON.stringify({ x: 1 }));
     });
 
-    it('POST FormData body → request 内强制 content-type(已知 bug,但行为稳定)', async () => {
-      // 已知:request() 在 init.body 存在时无条件 set content-type=application/json,
-      // 浏览器会用我们 set 的 type 覆盖掉(FormData 的 multipart boundary),实际不影响。
+    it('POST FormData body → 不覆盖浏览器 multipart header(2026-06-29 fix)', async () => {
+      // request() 对 FormData 不设 content-type,让浏览器自动设 multipart/form-data + boundary
       const fetchSpy = vi
         .spyOn(globalThis, 'fetch')
         .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
@@ -114,9 +113,8 @@ describe('lib/api.ts', () => {
       await api.post('/upload', fd);
       const init = fetchSpy.mock.calls[0]![1]!;
       expect(init.body).toBe(fd);
-      // api.post 对 FormData 不显式设 headers,但 request() 会补 content-type=application/json
       const headers = init.headers as Headers;
-      expect(headers.get('content-type')).toBe('application/json');
+      expect(headers.get('content-type')).toBeNull();
     });
 
     it('PATCH → JSON body', async () => {
