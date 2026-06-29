@@ -117,25 +117,37 @@ export class CodeVersionsService {
 
     const { fileCount, locCount } = await safeExtractZip(input.tmpPath, targetDir);
 
-    // 4. 插入
+    // 4. 插入(checksum 唯一 → 重复 zip 拒绝并提示)
     const now = Date.now();
-    this.db
-      .insert(codeVersions)
-      .values({
-        id: cvId,
-        projectId: input.projectId,
-        versionLabel: input.label,
-        sourceType: 'zip',
-        sourceRef: input.originalName,
-        fileCount,
-        locCount,
-        sizeBytes: input.sizeBytes,
-        parentVersionId: input.parentVersionId ?? null,
-        uploadedBy: input.uploadedBy,
-        uploadedAt: now,
-        checksum,
-      })
-      .run();
+    try {
+      this.db
+        .insert(codeVersions)
+        .values({
+          id: cvId,
+          projectId: input.projectId,
+          versionLabel: input.label,
+          sourceType: 'zip',
+          sourceRef: input.originalName,
+          fileCount,
+          locCount,
+          sizeBytes: input.sizeBytes,
+          parentVersionId: input.parentVersionId ?? null,
+          uploadedBy: input.uploadedBy,
+          uploadedAt: now,
+          checksum,
+        })
+        .run();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes('UNIQUE constraint failed: code_versions.checksum')) {
+        throw new BadRequestException(
+          `This exact file (same SHA-256) has already been uploaded. ` +
+            `If you need a new version, modify the code and re-zip. ` +
+            `(checksum: ${checksum.slice(0, 12)}…)`,
+        );
+      }
+      throw e;
+    }
 
     return {
       ...this.get(cvId),
