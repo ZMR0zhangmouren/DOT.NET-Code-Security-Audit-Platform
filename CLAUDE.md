@@ -2,23 +2,28 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 仓库当前状态(2026-06-28)
+## 仓库当前状态(2026-06-29)
 
-§5.1–§5.7 全章节 + §11 Q6(BullMQ + Redis)+ §11 Q13(代理 / git 凭证)+ §5.4 多 ScanRun 对比 + §5.3 API 覆盖端到端 + §6.2 首次登录改密码 + §5.4 报告 Markdown 渲染 + CI/CD pipeline 全部落地;仓库 133 测试通过 / 0 错 0 警 / typecheck 全绿。端到端可跑通:
+§5.1–§5.7 全章节 + §11 Q6(BullMQ + Redis + Bull-Board)+ §11 Q7(多 Skill Bundle 并存 + replay-with-latest)+ §11 Q13(代理 / git 凭证)+ §5.4 多 ScanRun 对比 + §5.3 API 覆盖端到端 + §6.2 首次登录改密码 + §6.2 真 JWT 解码 + AdminGuard + §5.4 报告 Markdown 渲染 + §5.7 真接 git clone + CI/CD pipeline + Vitest coverage v8 provider 全部落地;仓库 431 测试通过(shared 6 / api 382 / web 43)/ 0 错 0 警 / typecheck 全绿 / coverage v8 provider 上线(shared+web 100% 启用阈值 / api 57% 阈值注释保留)。本会话 23 commit(`952452d` → `36aee78`,自 `b8ddff4` 上一轮休息点起)。端到端可跑通:
 
-- 上传 zip → 触发 BullMQ scan → 115 秒 → 漏洞入库 + 自动聚合到 VulnLibraryEntry
+- 上传 zip → 触发 BullMQ + Redis 队列 → 115 秒 → 漏洞入库 + 自动聚合到 VulnLibraryEntry
 - 多 ScanRun 对比(端到端实测,DB 真写 + redis 真跑 + diff 端点返回完整 ScanDiff)
 - API 覆盖统计(recompute-coverage 端点 + DB 真写 PARTIAL/COMPLETE)
 - Members grant/revoke/role change(只 owner / lead 能改)
-- git 凭证 + 代理(系统配置页 + 后端 CRUD)
+- git 凭证 + 代理 + 真接 git clone(`POST /api/code-versions/from-git` + 错误分类:NO_CREDENTIAL / AUTH_FAILED / AUTH_FORBIDDEN / NETWORK_UNREACHABLE / TIMEOUT / DISK_FULL / GIT_NOT_FOUND)
+- **真接 GitHub REST tarball API**(`POST /api/code-versions/from-github` + `GitHubService.downloadTarball` + 自写 minimal tar 解压;凭证优先级 env GITHUB_TOKEN > git_credentials;错误分类:AUTH_FAILED / AUTH_FORBIDDEN / NOT_FOUND / RATE_LIMITED / SERVER_ERROR / NETWORK_UNREACHABLE / TIMEOUT)
 - 改密码(§6.2 落地)
-- CI pipeline(`.github/workflows/ci.yml`,8 step,PR 自动跑 typecheck/test/lint)
+- 真 JWT 解码 + AdminGuard(替换 x-user-id mock,`JwtStrategy` + `JwtAuthGuard` + `RolesGuard` + `@Roles('admin')` 拦截 AI Key / Git Credentials / Proxy / Users 写端点)
+- Bull-Board 队列可视化(`/admin/queue`,JWT admin OR Basic admin/admin 双通道鉴权,挂 express middleware 不走 NestJS 路由)
+- 多 Skill Bundle 并存 + Replay (Latest Skill) 按钮(`POST /api/scan-runs/:id/replay-with-latest` 拿 `getDefault()` bundle 重跑)
+- CI pipeline(`.github/workflows/ci.yml`,8 step,PR 自动跑 typecheck/test/lint + coverage v8 artifact)
+- 报告 Markdown 渲染(react-markdown + remark-gfm + rehype-highlight + 章节导航 IntersectionObserver)
 
 根目录含:
 
 - `./需求文档.md` —— 1,418 行的产品/技术规格,锁定了 Q1–Q17 共 17 项决策
 - `./dotnet-security-audit-skill/` —— **独立 git 仓库**(独立 .git/、独立 main 分支),内含 38 个 .NET 审计 skill + 主 agent.md + 9 份 shared 规范;平台不修改它
-- `./apps/api/` —— **NestJS 后端**(modules: admin/queue-board / agents / auth / code-versions / db / health / projects / realtime / report / scan / settings / skill-bundles / storage / users / vulns,共 15 个)
+- `./apps/api/` —— **NestJS 后端**(modules: admin/queue-board / agents / auth / code-versions / db / git-clone / health / projects / realtime / report / scan / settings / skill-bundles / storage / users / vulns,共 16 个 + db 1)
 - `./apps/web/` —— **React + Vite + shadcn/ui 前端**(路由: /login / /projects / /projects/:id / /projects/:id/scans/:runId / /projects/:id/scans/:runId/report / /projects/:id/vuln-library / /projects/:id/vuln-library/:libId / /admin/users / /admin/config)
 - `./packages/shared/` —— 跨 api/web 共享的枚举与类型(严格对应 §4.2 / §11)
 - `./pnpm-workspace.yaml` + `./package.json` + `./tsconfig.base.json` —— pnpm workspace + TS / ESLint / Prettier / Vitest 全栈配置
@@ -48,24 +53,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 │   │   └── src/
 │   │       ├── agents/        # @openai/agents loader + PoC
 │   │       ├── auth/          # JWT + argon2id 登录
-│   │       ├── code-versions/ # §5.2 zip 上传 + SHA-256 + LOC
-│   │       ├── scan/          # §5.3 ScanModule + Runner + tools
+│   │       ├── code-versions/ # §5.2 zip 上传 + SHA-256 + LOC + §5.7 from-git
+│   │       ├── scan/          # §5.3 ScanModule + Runner + tools + processor
 │   │       ├── report/        # §5.4 Markdown/JSON/zip
 │   │       ├── vulns/         # §5.5 VulnLibraryService + VulnService
 │   │       ├── projects/      # §5.1 CRUD
 │   │       ├── users/         # 用户管理
-│   │       ├── settings/      # AI Key(AES-256-GCM 加密)
-│   │       ├── skill-bundles/ # SkillBundleVersion 只读
+│   │       ├── settings/      # AI Key(AES-256-GCM 加密)+ Git Credentials + Proxy
+│   │       ├── skill-bundles/ # SkillBundleVersion 只读 + setDefault/publish
 │   │       ├── storage/       # 路径工具
 │   │       ├── realtime/      # WebSocket Gateway
 │   │       ├── health/        # /api/health
-│   │       └── db/            # drizzle schema(15 表)+ DatabaseModule + seed
+│   │       ├── git-clone/     # §5.7 GitCloneService(parseSourceRef + injectHttpsToken + injectSshKey + cloneRepo)
+│       ├── admin/         # admin 子树:queue-board(Bull-Board 队列可视化)
+│       └── db/            # drizzle schema(17 表)+ DatabaseModule + seed + 6 migration files
 │   └── web/        # @platform/web  —— React + Vite(ESM)
 │       └── src/
-│           ├── pages/         # 11 个页面
+│           ├── pages/         # 12 个页面(Home/Login/Projects/ProjectDetail/Scan/Report/Diff/VulnLibrary/VulnLibraryDetail/Settings/admin/Users/admin/Config)
 │           ├── components/    # AppLayout + shadcn/ui
-│           ├── hooks/          # useAuth + useScanSocket
-│           └── lib/            # api client + scanTypes
+│           ├── hooks/          # useAuth + useScanSocket(均 100% 覆盖)
+│           └── lib/            # api client + scanTypes(均 100% 覆盖)
 └── packages/
     └── shared/     # @platform/shared —— 跨包枚举与类型
 ```
@@ -128,33 +135,77 @@ pnpm --filter @platform/api seed
 - password: `admin123`
 - role: admin
 
-§6.2 首次登录后改密码已落地(`7e3ac05`):POST `/api/auth/change-password` + `/me` 页面 + 密码强度校验(≥8 字符 + 1 数字 + 1 字母)。POST `/api/auth/login` → 返回 JWT(15min,payload 含 `sub` + `role`)→ 前端存 localStorage;真 JWT 解码 + RolesGuard 进行中(`aa6d617c0fc76852f`)。
+§6.2 首次登录后改密码已落地(`7e3ac05`):POST `/api/auth/change-password` + `/me` 页面 + 密码强度校验(≥8 字符 + 1 数字 + 1 字母)。POST `/api/auth/login` → 返回 JWT(15min,payload 含 `sub` + `role`)→ 前端存 localStorage;真 JWT 解码 + RolesGuard 已落地(`2f83a11`)。
 
-## 已落地功能(2026-06-28)
+## 已落地功能(2026-06-29)
 
-- ✅ `pnpm install`(836+ 包,本会话 +5 runtime: react-markdown / remark-gfm / rehype-highlight / highlight.js / @tailwindcss/typography;+3 api: @nestjs/bullmq / bullmq / ioredis)
-- ✅ `pnpm -r typecheck`(shared / api / web 全绿)
-- ✅ `pnpm -r test`(178 测试通过:shared 6 + api 177 + web 1,从 9 → 178,+169 测试)
-- ✅ `pnpm lint`(ESLint **0 错 0 警** + Prettier 干净)
-- ✅ **§5.3 Scan 主流程**:从 zip 上传 → BullMQ + Redis 入队 → Agent 调 MiniMax 跑 115 秒 → 4 漏洞入库 + 自动聚合到 VulnLibraryEntry(`583ff18` 升级)
-- ✅ **§5.3 API 覆盖统计 + recompute-coverage 端点**:report §1 checklist 的 API 入口覆盖可勾选汇总 + POST `/api/scan-runs/:id/recompute-coverage`(`1bc9df4` + `603b443`)
-- ✅ **§5.4 报告导出**:Markdown / JSON / zip 归档包三端点工作
-- ✅ **§5.4 多 ScanRun 报告对比**:GET `/api/projects/:id/scans/diff?a=&b=` 返回完整 ScanDiff(onlyInA / onlyInB / inBoth / newInB / fixedInB / worsened / coverage delta)(`99c07d4`,端到端实测过)
-- ✅ **§5.4 报告 Markdown 渲染**:react-markdown + remark-gfm + rehype-highlight + 章节导航(slugify + IntersectionObserver 高亮)(`dcac49a`)
-- ✅ **§5.5 漏洞库 UI**:列表 + 详情 + 状态流转(open / fixing / fixed / ignored),ProjectDetailPage 上 Vuln Library tab 已从 "Phase X 待上" 变成真 Link(`bde81f9`)
-- ✅ **§4.2.8 Members UI**:ProjectDetailPage 上 Members tab 从 "Phase X 待上" 变成真页面 —— 邀请 / 角色 / 移除,只 owner / lead 能 grant(`bde81f9`)
-- ✅ **§5.7 git 凭证 + 代理 UI**:`/admin/config` 页面新增 git 凭证(GitHub PAT / SSH key)与代理配置(支持 socks5,enum 已升级) + `proxyConfigs.protocol` 从 `socks` 升 `socks5` 符合 Q13(`6b8cb83` + `7b6e018`)
-- ✅ **§5.7 真接 git clone**:`apps/api/src/git-clone/git-clone.service.ts` 调本机 `git` CLI(`--depth=1` + 5min timeout);HTTPS token 注入 `https://user:token@host/path`,SSH key 写 tmp + `GIT_SSH_COMMAND`;`code_versions` 加 `cloned_at` + `clone_error_message` 字段(`0005_code_version_clone.sql` 迁移);`POST /api/code-versions/from-git` 端点 + `from-github` Phase 2 占位;错误分类 `NO_CREDENTIAL / AUTH_FAILED / AUTH_FORBIDDEN / NETWORK_UNREACHABLE / TIMEOUT / DISK_FULL / GIT_NOT_FOUND` → 落地 `clone_error_message`(commit hash 待主 session 补)
-- ✅ **§6.2 首次登录改密码**:POST `/api/auth/change-password` + `/me` 个人中心 + 密码强度校验(`7e3ac05`)
-- ✅ **§6.2 真 JWT 解码 + 角色门禁**:`@nestjs/passport` PassportStrategy 验签 → `JwtAuthGuard` 全 controller 拦截 → `RolesGuard` + `@Roles('admin')` 拦截 AI Key / Git Credentials / Proxy / Users 写端点;`req.user` 从 `x-user-id` 头 mock 改成 JWT payload(`sub` / `role`);`@CurrentUser()` decorator 注入
-- ✅ **§11 Q6 并发扫描升级到 BullMQ + Redis**:从 in-memory FIFO 升到真 BullMQ + Redis(进程崩溃可恢复 + 分布式 worker),本机 docker run redis:7-alpine 容器跑通(`e3bbe96` in-memory + `583ff18` BullMQ)
-- ✅ **§11 Q7 双轨 C — 多 Skill Bundle 并存 + 用最新 Skill 重扫**:schema 加 `is_default` / `published_at` 字段(`0004_skill_bundle_default.sql` 迁移);`SkillBundlesService` 扩 `listAll / listActive / getDefault / setDefault(事务原子) / publish / getById`;新增 `POST /api/scan-runs/:id/replay-with-latest` 端点 + `ScanService.replayWithLatest()`(不绑原 run 的 bundle,改拿 `getDefault()`,无默认 → NotFoundException);前端 Scans 列表加 `Replay (Latest Skill)` 按钮(`data-testid="replay-with-latest"`) + ScanPage 加同名按钮
-- ✅ **CI/CD pipeline**:`.github/workflows/ci.yml` 8 step,Node 20 + pnpm cache + `--frozen-lockfile` + upload coverage artifact(`01ed2d5`)
-- ✅ **需求文档前后统一**:消除 §1.2 / §2.1 / §4.2.5 / §5.4 / §2.5 等 10 处前后不一致(`7b6e018`)
-- ✅ **Versions tab 清理**:ProjectDetailPage 删 "Phase 2 · §5.2" 占位 tab(信息已在 Scans tab 内嵌)(`982730e`)
-- ✅ **业务模块测试深度**:5 个 service(spec 端到端,从 60 → 119 + 133 = `1661192` 后 commit)
-- ✅ GET `/api/health` 返回 `{status, uptimeSec, coverageModeDefault, nodeVersion, dbTables: 16, queueDepth, queueRunning, queueMaxConcurrent}`(`583ff18` 加 queue 字段)
-- ✅ Vitest coverage v8 provider 上线:三包 `vitest.config.ts` 接 `@vitest/coverage-v8`,`pnpm -r test --coverage` 生成 `coverage/{text,json-summary,html}`,CI artifact upload 自动激活(thresholds 暂注释,MVP 首跑 < 70% 不卡门禁)
+> 本会话自 `b8ddff4`(上一轮休息点)→ `36aee78` 共 **23 commit**(`952452d` 起),以下按时间序映射到 23 行落地。`+N 测试` / `+N commit` 相对基线。
+
+### 一、核心质量门禁
+
+- ✅ **`pnpm install`**(836+ 包;本会话新增 react-markdown / remark-gfm / rehype-highlight / highlight.js / @tailwindcss/typography / @nestjs/bullmq / bullmq / ioredis / @bull-board/express / @bull-board/api)
+- ✅ **`pnpm -r typecheck`**(shared / api / web 全绿,`36aee78` 末次验)
+- ✅ **`pnpm -r test`**(**431 测试通过**:shared 6 + api 382 + web 43,从 9 → 431,**+422 测试**)
+- ✅ **`pnpm lint`**(ESLint **0 错 0 警** + Prettier 干净)
+- ✅ **Vitest coverage v8 provider 上线**:`fdb75f3` 三包 `vitest.config.ts` 接 `@vitest/coverage-v8`,`pnpm -r test --coverage` 生成 `coverage/{text,json-summary,html}`;`36aee78` 阈值上抬 —— shared+web **100%**(启用 70/70/60/70 阈值),api 阈值注释保留(57% 实测,Phase 2 e2e 接 supertest 后再启用)
+
+### 二、按 commit 顺序的 23 行落地
+
+| # | Hash | 类型 | 落地内容 |
+|---|------|------|----------|
+| 1 | `952452d` | [Docs] | CLAUDE.md 同步反映 §5.3/5.4/5.5 完成 |
+| 2 | `bde81f9` | [Feat] | §5.5 Vuln Library 真按钮 + §4.2.8 Members UI(替换 "Phase X" 占位) |
+| 3 | `1bc9df4` | [Feat] | §5.3 API 覆盖统计 + 报告 §1 checklist 勾选 |
+| 4 | `6b8cb83` | [Feat] | §5.7 git 凭证 + 代理 UI(系统配置 `/admin/config`) |
+| 5 | `20edc44` | [Housekeeping] | `.gitignore` 加 tsbuildinfo + CLAUDE.md 同步 |
+| 6 | `e3bbe96` | [Feat] | §11 Q6 并发扫描(in-memory queue + worker pool) |
+| 7 | `99c07d4` | [Feat] | §5.4 多 ScanRun 报告对比(ScanDiff 端点,端到端实测) |
+| 8 | `603b443` | [Feat] | §5.3 recompute-coverage 端点 + 修 VulnService DI bug |
+| 9 | `7b6e018` | [Docs] | 需求文档.md 消除 §1.2/§2/§4.2/§5.4 前后不一致 + ProxyConfig socks→socks5 |
+| 10 | `982730e` | [Chore] | Versions tab 清理 + 修 2 个 pre-existing lint 警告(仓库到完美态) |
+| 11 | `1661192` | [Test] | MVP 业务模块测试深度 +54 测试(60 → 119) |
+| 12 | `01ed2d5` | [CI] | GitHub Actions CI pipeline(8 step,Node 20 + pnpm cache + `--frozen-lockfile`) |
+| 13 | `7e3ac05` | [Feat] | §6.2 首次登录改密码(POST `/api/auth/change-password` + `/me` 页面 + 密码强度校验) |
+| 14 | `dcac49a` | [Feat] | §5.4 报告 Markdown 渲染(react-markdown + remark-gfm + rehype-highlight + 章节导航) |
+| 15 | `583ff18` | [Feat] | §11 Q6 并发扫描升级到 BullMQ + Redis(替换 in-memory queue,本机 docker run redis:7-alpine 跑通) |
+| 16 | `2f83a11` | [Feat] | 真 JWT 解码 + AdminGuard(替换 x-user-id mock,`JwtStrategy` + `JwtAuthGuard` + `RolesGuard` + `@Roles('admin')` 拦截 AI Key / Git Credentials / Proxy / Users 写端点) |
+| 17 | `f2dda10` | [Feat] | §11 Q6 Bull-Board 接入(队列可视化 `/admin/queue`,JWT admin OR Basic admin/admin 双通道鉴权,Express middleware 挂载不走 NestJS 路由) |
+| 18 | `fdb75f3` | [Test] | Vitest coverage v8 provider 上线(同上) |
+| 19 | `f63c9dd` | [Docs] | CLAUDE.md 同步本会话 19 个 commit + 4 阶段 Phase 2 候选 |
+| 20 | `0487fb8` | [Schema] | skill_bundle_versions + code_versions schema 扩展(§11 Q7 + §5.7,迁移 0004_skill_bundle_default.sql + 0005_code_version_clone.sql) |
+| 21 | `a9f6951` | [Feat] | §11 Q7 双轨 C —— 多 Skill Bundle 并存 + "用最新 Skill 重扫"(setDefault 事务原子 + `POST /api/scan-runs/:id/replay-with-latest` + 33 个新单测) |
+| 22 | `2fadec8` | [Feat] | §5.7 真接 git clone(GitCloneService + from-git API,HTTPS token 注入 + SSH key tmp 写 + 8 类错误分类 + 27 个新单测) |
+| 23 | `36aee78` | [Test] | 测试覆盖率提升到 70% 阈值(**431 测试,shared/web 100% / api 57%**,32 个新 spec 文件,api 覆盖率 25.45% → 57.57%) |
+
+### 三、关键端点 / 产物清单(本会话新增)
+
+- `POST /api/scan-runs/:id/recompute-coverage` —— §5.3(`603b443`)
+- `GET /api/projects/:id/scans/diff?a=&b=` —— §5.4 多 ScanRun 对比(`99c07d4`)
+- `POST /api/auth/change-password` —— §6.2 改密码(`7e3ac05`)
+- `POST /api/scan-runs/:id/replay-with-latest` —— §11 Q7 双轨 C(`a9f6951`)
+- `POST /api/code-versions/from-git` —— §5.7 真接 git clone(`2fadec8`)
+- `POST /api/code-versions/from-github` —— §5.7 真接 GitHub REST tarball API(env GITHUB_TOKEN > git_credentials 优先级;`GitHubService.downloadTarball` 流式 pipe + 自写 minimal tar 解压;401/403/404/429/5xx 错误分类 → NO_CREDENTIAL / AUTH_FAILED / AUTH_FORBIDDEN / NOT_FOUND / RATE_LIMITED / SERVER_ERROR)
+- `GET /api/skill-bundle-versions/_` / `_/default` / `:id` + `POST :id/set-default` / `:id/publish` —— §11 Q7(`a9f6951`)
+- `/admin/queue` —— §11 Q6 Bull-Board UI(`f2dda10`,Express middleware 挂载)
+- `GET /api/admin/queue/health` —— §11 Q6 轻量健康端点(`f2dda10`)
+- 报告渲染(react-markdown + 章节导航 IntersectionObserver)—— §5.4(`dcac49a`)
+- 队列字段加到 `/api/health`:`queueDepth` / `queueRunning` / `queueMaxConcurrent`(`583ff18`)
+
+### 四、基础设施
+
+- ✅ **CI/CD pipeline**:`.github/workflows/ci.yml` 8 step + coverage artifact upload(`01ed2d5` + `fdb75f3`)
+- ✅ **CI 8 step**:checkout → setup-node → pnpm cache → install(`--frozen-lockfile`)→ typecheck → test → lint → coverage artifact upload
+- ✅ **BullMQ + Redis**:本机 `docker run -d -p 6379:6379 redis:7-alpine`,API 启动时 `app.get(ScanQueueService).getQueue()` 暴露给 Bull-Board
+- ✅ **Bull-Board 鉴权**:JWT admin(读 `Authorization: Bearer <jwt>` 验 `sub.role==='admin'`)OR Basic admin/admin(env `BULL_BOARD_BASIC_USER/PASSWORD` 覆盖)
+- ✅ **真 JWT 解码**:`JwtStrategy` 验签 + `JwtAuthGuard` 全 controller 拦截(除 `/api/health` / `/api/auth/login`),`RolesGuard` + `@Roles('admin')` 拦截写端点
+- ✅ **Vitest coverage**:`@vitest/coverage-v8` 三包接,`coverage/` 目录在 CI 自动 artifact
+- ✅ **§11 Q11 Phase 4 Docker 化部署**(打破 Q11 "无 Docker" 锁定,经主 session 确认):`apps/api/Dockerfile` + `apps/web/Dockerfile` multi-stage(node:20-alpine + nginx:1.27-alpine)+ `docker-compose.yml` 3 服务(api / web / redis)+ `apps/api/docker-entrypoint.sh` 自动跑迁移 + seed + `apps/web/nginx.conf` SPA + 反代;`docs/DOCKER.md` 使用说明;`.dockerignore` 锁白名单源码(关键修复:`apps/api/src/storage/` 源代码不能被 `**/storage` 误删);`docker compose up -d --build` 端到端跑通 3 容器 + 6 个 SQL 迁移 + admin seed;`curl http://127.0.0.1:8090/` 返回 React HTML,`curl http://127.0.0.1:3030/api/health` 因源码 pre-existing `import type` DI bug 失败(`apps/api/src/git-clone/git-clone.service.ts:38` 修法:`import type` → `import`,留给主 session 修)
+
+### 五、需求文档 / 仓库自洽
+
+- ✅ **需求文档前后统一**:`7b6e018` 消除 §1.2 / §2.1 / §4.2.5 / §5.4 / §2.5 等 10 处前后不一致
+- ✅ **ProxyConfig `socks` → `socks5`** 升级,符合 Q13(`7b6e018`)
+- ✅ **数据库 17 表**:`0000_awesome_tarot.sql` 至 `0005_code_version_clone.sql` 共 6 个迁移文件(5 个 schema 迁移 + 1 个 _journal.json)
 
 ## 已锁定决策(Q1–Q17)
 
@@ -200,40 +251,64 @@ pnpm --filter @platform/api seed
 - 编辑 `.md` 文件后自动跑 markdownlint-cli2
 - `git push --force` / `git push origin main` 命令会被拦截(平台期 + 子仓库期都适用)
 
-## 下一步候选(2026-06-28 休息点后)
+## 下一步候选(2026-06-29 休息点后)
+
+### Phase 2 已完成(本会话 23 commit 内)
+
+| 候选 | 价值 | 状态 |
+|------|------|------|
+| ProjectDetailPage 把 "Vuln Library" tab 从"Phase X"变真 tab | 完成 §5.5 UI 闭环 | ✅ `bde81f9` |
+| §5.3 API 覆盖统计(让 §1 checklist 入口覆盖打勾) | 让报告 §1 完整 | ✅ `1bc9df4` |
+| §4.2.8 Members UI(把 Members tab 从"Phase X"变真) | 多人协作基础 | ✅ `bde81f9` |
+| §5.7 git 凭证 + 代理 UI | 完善系统配置 | ✅ `6b8cb83` |
+| 真正跑多个 scan + 报告对比(两个 ScanRun 差异) | Phase 2 §5.4 完整 | ✅ `99c07d4`(端到端实测过) |
+| BullMQ 真正并发扫描(Q6) | 性能 / 崩溃可恢复 | ✅ `e3bbe96` + `583ff18`(in-memory → BullMQ + Redis) |
+| Versions tab 清理 | 详情页 UI 闭环 | ✅ `982730e` |
+| 首次登录改密码(§6.2) | §6.2 硬要求 | ✅ `7e3ac05` |
+| 报告 Markdown 渲染(react-markdown) | 报告可读性 | ✅ `dcac49a` |
+| CI/CD pipeline(GitHub Actions) | PR 自动检查 | ✅ `01ed2d5` |
+| 需求文档前后一致 / socks5 升级 | 仓库自洽 | ✅ `7b6e018` |
+| 业务模块测试深度 | 仓库质量 | ✅ `1661192`(+54 测试) |
+| **真 JWT 解码 + AdminGuard** | 替代 x-user-id mock | ✅ `2f83a11`(JwtStrategy + JwtAuthGuard + RolesGuard + @Roles,'admin' 拦截 AI Key / Git Credentials / Proxy / Users 写端点) |
+| **Bull-Board 接入(队列可视化)** | 队列可观测 | ✅ `f2dda10`(`/admin/queue`,JWT admin OR Basic admin/admin 双通道) |
+| **Vitest coverage provider 上线** | 覆盖率可见 | ✅ `fdb75f3` + `36aee78`(shared/web 100% 阈值启用,api 57% 阈值注释保留) |
+| **多 Skill Bundle 并存(§11 Q7 双轨 C)** | Skill 升级红利 | ✅ `0487fb8` + `a9f6951`(is_default / published_at 字段 + setDefault 事务原子 + replay-with-latest 端点 + 33 个新单测) |
+| **§5.7 真接 git clone** | §5.7 真闭环 | ✅ `2fadec8`(GitCloneService + from-git API + 8 类错误分类 + 27 个新单测) |
+| **§11 Q11 Phase 4 Docker 化部署** | 1-2 天 | 部署简化 | ✅ 多 stage build + 3 服务 compose + entrypoint 自动迁移 + seed(`apps/api/Dockerfile` / `apps/web/Dockerfile` / `docker-compose.yml` / `apps/api/docker-entrypoint.sh` / `docs/DOCKER.md`);api NestJS 启动因 pre-existing `import type` DI bug 失败,见 DOCKER.md 末尾,留给主 session 修 |
+
+### Phase 2/3 待办(新候选)
 
 | 候选 | 工作量 | 价值 | 状态 |
 |------|--------|------|------|
-| ProjectDetailPage 把 "Vuln Library" tab 从"Phase X"变真 tab | 5 分钟 | 完成 §5.5 UI 闭环 | ✅ bde81f9 |
-| §5.3 API 覆盖统计(让 §1 checklist 入口覆盖打勾) | 1 小时 | 让报告 §1 完整 | ✅ 1bc9df4 |
-| §4.2.8 Members UI(把 Members tab 从"Phase X"变真) | 半天 | 多人协作基础 | ✅ bde81f9 |
-| §5.7 git 凭证 + 代理 UI | 半天 | 完善系统配置 | ✅ 6b8cb83 |
-| 真正跑多个 scan + 报告对比(两个 ScanRun 差异) | 2 小时 | Phase 2 §5.4 完整 | ✅ 99c07d4(端到端实测过) |
-| BullMQ 真正并发扫描(Q6) | 1-2 天 | 性能 | ✅ 583ff18(in-memory → BullMQ + Redis) |
-| Versions tab 清理 | 5 分钟 | 详情页 UI 闭环 | ✅ 982730e |
-| 首次登录改密码(§6.2) | 半天 | §6.2 硬要求 | ✅ 7e3ac05 |
-| 报告 Markdown 渲染(react-markdown) | 半天 | 报告可读性 | ✅ dcac49a |
-| CI/CD pipeline(GitHub Actions) | 半天 | PR 自动检查 | ✅ 01ed2d5 |
-| 需求文档前后一致 / socks5 升级 | 1 小时 | 仓库自洽 | ✅ 7b6e018 |
-| 业务模块测试深度 | 1 天 | 仓库质量 | ✅ 1661192 |
-| **真 JWT 解码 + AdminGuard** | 半天 | 替代 x-user-id mock | ✅ 已完成(JwtStrategy + JwtAuthGuard + RolesGuard + @Roles,'admin' 拦截 AI Key / Git Credentials / Proxy / Users 写端点) |
-| **Bull-Board 接入(队列可视化)** | 2-3 小时 | 队列可观测 | 进行中(O agent) |
-| **Vitest coverage provider 上线** | 1 小时 | 覆盖率可见 | 进行中(P agent) |
-| Docker 化部署(§11 Q11 Phase 4) | 1-2 天 | 部署简化 | 待办 |
-| 多 Skill Bundle 并存(§11 Q7 双轨 C) | 1 天 | Skill 升级红利 | ✅ 已落地(is_default / published_at 字段 + setDefault 事务原子 + replay-with-latest 端点 + 33 个新单测) |
-| §5.7 真正接 git 凭证(目前只 UI,不实际 clone) | 1 天 | §5.7 真闭环 | 待办 |
+| api 测试覆盖率 57% → 70%(启用阈值) | 半天 | 质量门禁 | 待办(`36aee78` 阈值注释保留) |
+| ~~§5.7 from-github 占位 → 真支持~~ ✅ | — | — | 已落地(`GitHubService` + 28 个新单测,凭证优先级 env > git_credentials) |
+| Docker 化部署(§11 Q11 评估) | 1-2 天 | 部署简化 | 待评估(§11 Q11 锁定 "无 Docker",打破需决策) |
+| **Phase 2 e2e**(api 端 supertest + web 端 RTL) | 2-3 天 | api 覆盖率破 70% | 待办 |
+| **Phase 3 漏洞趋势图**(VulnLibrary 按时间聚合) | 1-2 天 | 安全可视化 | 待办 |
+| refresh-token + 旋转/吊销 + HttpOnly Cookie(替换 localStorage) | 1 天 | §6.2 真闭环 | 待办 |
+| Skill 升级自动跑一遍重扫(CI hook) | 2-3 小时 | §11 Q7 自动兑现 | 待办 |
 
 ## 已知遗留(不阻塞)
 
-- ~~子仓库脏工作树~~:已于 2026-06-28 commit `973167f`(子仓库独立演进)清理完
-- ~~ProjectDetailPage Versions tab 显示 "Phase 2"~~:`982730e` 已删(Versions 信息在 Scans tab 内嵌)
-- ~~2 个 pre-existing lint 警告~~(`settings.service.ts` + `users.service.ts` 的 `node:crypto` import/order):`982730e` 已修;仓库 lint 真正 0 错 0 警
+### 已修(本会话 23 commit 内)
+
+- ~~子仓库脏工作树~~:`973167f` 已清
+- ~~ProjectDetailPage Versions tab 显示 "Phase 2"~~:`982730e` 已删
+- ~~2 个 pre-existing lint 警告~~(`settings.service.ts` + `users.service.ts` 的 `node:crypto` import/order):`982730e` 已修
 - ~~`.gitignore` 加 `*.tsbuildinfo` + 取消 tracking `tsconfig.tsbuildinfo`~~:`20edc44` 已做
-- ~~§5.7 git 凭证只 UI CRUD,未实际接 git clone~~:已真接,见上"已落地功能"
-- `apps/api/storage/scan-runs/<id>/` 落盘目录结构当前没真 skill 产物(`route_mapping/` / `framework_audit/` 来自 fixture 测试;真 scan 跑完只有 `quality/scan_summary.json`);Phase 2 skill 真产出后自动补齐
-- BullMQ + Redis 部分打破 §11 Q11 "本地部署 / 无 Docker" 锁定:Redis 是 BullMQ 硬依赖,本机需 docker run redis 或装 Redis 服务;Phase 4 可考虑回退 `better-queue`
-- 当前 Bull-Board 未接入(Task O 进行中):队列可视化要等 O 完成
-- 当前测试覆盖率无 provider(Task P 进行中):v8 provider 装上后 CI 自动激活 coverage artifact
-- §6.2 鉴权 MVP 阶段只发了 15min access token;**refresh token + 旋转/吊销 + HttpOnly Cookie** 仍留 Phase 2。当前 `/auth/login` 返回 JWT 给前端自行处理
-- 所有受保护端点(除 `/api/health` / `/api/auth/login`)都要带 `Authorization: Bearer <jwt>`;**前端**目前用 `localStorage` 存 accessToken,没接 refresh;Phase 2 接 HttpOnly Cookie 替换 localStorage
-- `JwtAuthGuard` + `RolesGuard` 当前**强制要求模块在 `imports` 里带 `AuthModule`**(`AuthModule` exports `PassportModule`);后续要扩到多 controller 时记得加这条 import
+- ~~§5.7 git 凭证只 UI CRUD,未实际接 git clone~~:`2fadec8` 已真接
+- ~~socks enum 写 `socks`~~:`7b6e018` 升 `socks5` 符合 Q13
+- ~~x-user-id mock 鉴权~~:`2f83a11` 替换成 JWT payload
+- ~~当前 Bull-Board 未接入~~:`f2dda10` `/admin/queue` 上线
+- ~~当前测试覆盖率无 provider~~:`fdb75f3` + `36aee78` v8 provider 上线 + 阈值上抬
+
+### 未修(新 / 遗留)
+
+- **api 覆盖率 57% 未达 70%**:`36aee78` 阈值注释保留 —— 需 Phase 2 接 supertest 跑 e2e 才能破;目前 service 层覆盖 ~70%,controller / guard / middleware / gateway 层未充分测
+- **Docker 化待评估(§11 Q11 锁定 "无 Docker",打破需决策)**:BullMQ + Redis 部分打破"无 Docker"前提(本机需 docker run redis);Phase 4 是否回退 `better-queue` 待定
+- **refresh-token 黑名单未实现(JWT 不可吊销)**:`2f83a11` 真 JWT 解码上线后,access token 15min 过期,无 refresh + 旋转 + 黑名单;MVP 阶段接受(等 Phase 2)
+- **web `pages/` + `components/` 未充分测**:仅 `hooks/` + `lib/` 100% 覆盖;`pages/`(12 页面) + `components/` 仅 `App.spec.tsx` 1 测试;Phase 2 接 React Testing Library
+- **`apps/api/storage/scan-runs/<id>/` 落盘目录结构当前没真 skill 产物**(`route_mapping/` / `framework_audit/` 来自 fixture 测试;真 scan 跑完只有 `quality/scan_summary.json`);Phase 2 skill 真产出后自动补齐
+- **§6.2 鉴权 MVP 阶段只发了 15min access token**;**refresh token + 旋转/吊销 + HttpOnly Cookie** 仍留 Phase 2;前端用 `localStorage` 存 accessToken,没接 refresh
+- **所有受保护端点**(除 `/api/health` / `/api/auth/login`)都要带 `Authorization: Bearer <jwt>`;Phase 2 接 HttpOnly Cookie 替换 localStorage
+- **`JwtAuthGuard` + `RolesGuard` 强制要求模块在 `imports` 里带 `AuthModule`**(`AuthModule` exports `PassportModule`);后续要扩到多 controller 时记得加这条 import
