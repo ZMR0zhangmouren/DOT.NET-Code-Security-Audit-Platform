@@ -16,6 +16,7 @@ interface CreateScanDto {
   projectId: string;
   codeVersionId: string;
   skillBundleId: string;
+  aiKeyId?: string;
   triggerType?: 'manual' | 'scheduled' | 'replay';
   coverageMode?: CoverageMode;
 }
@@ -50,6 +51,7 @@ export class ScanController {
       triggerType,
       triggeredBy,
       coverageMode: body.coverageMode,
+      aiKeyId: body.aiKeyId,
     });
     // §10.3 —— scan_total 记录"创建"事件,status=queued
     // (finalize / cancel / failed 在 ScanRunnerService 中分别 inc)

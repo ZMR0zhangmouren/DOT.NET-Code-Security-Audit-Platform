@@ -63,16 +63,27 @@ async function request<T>(path: string, init: RequestInit & { auth?: boolean } =
   }
   if (!r.ok) {
     let msg = `HTTP ${r.status}`;
+    // Try JSON first (most API errors are JSON), fallback to text
     try {
       const j = (await r.json()) as { message?: string };
       if (j.message) msg = j.message;
     } catch {
-      // ignore
+      try {
+        const t = await r.text();
+        if (t) msg += ` — ${t.slice(0, 200)}`;
+      } catch {
+        /* ignore */
+      }
     }
     throw new ApiError(r.status, msg);
   }
   if (r.status === 204) return undefined as T;
-  return (await r.json()) as T;
+  // Try JSON first, fallback to text (for markdown/text downloads)
+  try {
+    return (await r.json()) as T;
+  } catch {
+    return (await r.text()) as unknown as T;
+  }
 }
 
 export const api = {

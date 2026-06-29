@@ -69,10 +69,10 @@ export class ScanRunnerService implements OnModuleDestroy {
    * 内部使用 setImmediate 启动,不在事件循环同步段阻塞。
    * §5.3 + §11 Q6 —— ScanQueueService 通过 await 这个 Promise 知道 worker 完成,可以派发下一个。
    */
-  kickoff(scanRunId: string): Promise<void> {
+  kickoff(scanRunId: string, aiKeyId?: string): Promise<void> {
     return new Promise<void>((resolve) => {
       setImmediate(() => {
-        this.runScan(scanRunId)
+        this.runScan(scanRunId, aiKeyId)
           .catch((e: unknown) => {
             const msg = e instanceof Error ? e.message : String(e);
             this.logger.error(`scan ${scanRunId} crashed: ${msg}`);
@@ -100,7 +100,7 @@ export class ScanRunnerService implements OnModuleDestroy {
 
   /* ------------------------------- 主循环 ------------------------------- */
 
-  private async runScan(scanRunId: string): Promise<void> {
+  private async runScan(scanRunId: string, preferredAiKeyId?: string): Promise<void> {
     const ctx = runningScans.get(scanRunId) ?? { aborted: false };
     runningScans.set(scanRunId, ctx);
 
@@ -145,8 +145,8 @@ export class ScanRunnerService implements OnModuleDestroy {
     this.emitStatus(scanRunId, 'running');
     this.emitLog(scanRunId, 'info', `scan started; bundle=${bundle.version}, codeVersion=${cv.id}`);
 
-    // 2. resolve AI key
-    const key = this.pickActiveKey();
+    // 2. resolve AI key (preferred if user selected one in New Scan dialog)
+    const key = this.pickActiveKey(preferredAiKeyId);
     if (!key) {
       observeDuration();
       this.metrics.incScanTotal(run.projectId, 'failed', run.triggerType);
@@ -631,8 +631,12 @@ export class ScanRunnerService implements OnModuleDestroy {
       | undefined;
   }
 
-  private pickActiveKey(): ResolvedAiKey | null {
-    const row = this.db.select().from(aiKeys).where(eq(aiKeys.isActive, true)).get() as
+  private pickActiveKey(preferredId?: string): ResolvedAiKey | null {
+    const row = (
+      preferredId
+        ? this.db.select().from(aiKeys).where(eq(aiKeys.id, preferredId)).get()
+        : this.db.select().from(aiKeys).where(eq(aiKeys.isActive, true)).get()
+    ) as
       | {
           id: string;
           label: string;

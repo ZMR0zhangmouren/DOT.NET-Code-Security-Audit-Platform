@@ -12,6 +12,7 @@ export const SCAN_MAX_CONCURRENT_MAX = 10;
 
 export interface ScanJobData {
   scanRunId: string;
+  aiKeyId?: string;
 }
 
 /**
@@ -120,6 +121,7 @@ export class ScanQueueService implements OnModuleInit, OnModuleDestroy {
    */
   async enqueue(
     scanRunId: string,
+    aiKeyId?: string,
   ): Promise<{ position: number; running: number; maxConcurrent: number }> {
     const existing = await this.findExistingJob(scanRunId);
     if (existing) {
@@ -133,7 +135,7 @@ export class ScanQueueService implements OnModuleInit, OnModuleDestroy {
 
     await this.queue.add(
       SCAN_JOB_NAME,
-      { scanRunId },
+      { scanRunId, aiKeyId },
       {
         jobId: scanRunId, // 幂等 —— 同一 scanRunId 重复 add 会去重
         removeOnComplete: true,

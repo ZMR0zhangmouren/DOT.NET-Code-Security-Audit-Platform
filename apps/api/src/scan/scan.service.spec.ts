@@ -364,7 +364,7 @@ describe('ScanService (mocked DB)', () => {
     expect(result.coverageMode).toBe('FULL');
     expect(result.id).toMatch(/^scan-/);
     expect(enqueue).toHaveBeenCalledTimes(1);
-    expect(enqueue).toHaveBeenCalledWith(result.id);
+    expect(enqueue).toHaveBeenCalledWith(result.id, undefined);
     expect(fakeDb.rows['scan_runs']).toHaveLength(1);
   });
 

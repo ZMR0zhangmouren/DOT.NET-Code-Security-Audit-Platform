@@ -47,7 +47,7 @@ export class ScanProcessor extends WorkerHost {
     }
     this.logger.log(`[job ${job.id}] starting scan ${scanRunId} (attempt=${job.attemptsMade + 1})`);
     try {
-      await this.runner.kickoff(scanRunId);
+      await this.runner.kickoff(scanRunId, job.data.aiKeyId);
       this.logger.log(`[job ${job.id}] scan ${scanRunId} finished`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

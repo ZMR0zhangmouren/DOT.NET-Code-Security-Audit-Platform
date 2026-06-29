@@ -95,6 +95,7 @@ export class ScanService {
     triggerType: 'manual' | 'scheduled' | 'replay';
     triggeredBy: string;
     coverageMode?: CoverageMode;
+    aiKeyId?: string;
   }): Promise<ScanRunPublic> {
     const project = this.db
       .select({ id: projects.id })
@@ -154,7 +155,7 @@ export class ScanService {
     // 错误不静默吞:Redis 不可达时让上层感知,而不是把 DB 行留在 'queued' 状态
     // 永远没人跑
     try {
-      await this.queue.enqueue(id);
+      await this.queue.enqueue(id, input.aiKeyId);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       throw new BadRequestException(`failed to enqueue scan ${id}: ${msg}`);

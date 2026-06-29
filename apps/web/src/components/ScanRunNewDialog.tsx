@@ -32,14 +32,22 @@ export default function ScanRunNewDialog({
     defaultCodeVersionId ?? versions[0]?.id ?? '',
   );
   const [skillBundleId, setSkillBundleId] = useState('');
+  const [aiKeyId, setAiKeyId] = useState('');
+  const [aiKeys, setAiKeys] = useState<{ id: string; label: string; defaultModel: string }[]>([]);
   const [coverageMode, setCoverageMode] = useState<CoverageMode>('FULL');
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    // 若 props 提供新的 defaultCodeVersionId,同步(新建版本后弹起的情况)
     if (defaultCodeVersionId) setCodeVersionId(defaultCodeVersionId);
   }, [defaultCodeVersionId]);
+
+  useEffect(() => {
+    api
+      .get<{ id: string; label: string; defaultModel: string }[]>('/settings/ai-keys')
+      .then(setAiKeys)
+      .catch(() => {});
+  }, []);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
@@ -58,6 +66,7 @@ export default function ScanRunNewDialog({
         projectId,
         codeVersionId,
         skillBundleId: skillBundleId.trim(),
+        aiKeyId: aiKeyId || undefined,
         triggerType: 'manual',
         coverageMode,
       });
@@ -121,6 +130,22 @@ export default function ScanRunNewDialog({
             >
               <option value="FULL">FULL</option>
               <option value="SAMPLE">SAMPLE</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm md:col-span-2">
+            <span className="text-muted-foreground">AI Key (blank = auto-select first active)</span>
+            <select
+              value={aiKeyId}
+              onChange={(e) => setAiKeyId(e.target.value)}
+              className="rounded-md border border-input bg-background px-3 py-2"
+              data-testid="scan-new-aikey"
+            >
+              <option value="">(auto — first active)</option>
+              {aiKeys.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.label} — {k.defaultModel}
+                </option>
+              ))}
             </select>
           </label>
         </div>

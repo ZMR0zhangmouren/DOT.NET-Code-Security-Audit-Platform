@@ -238,6 +238,9 @@ export default function ConfigPage(): React.ReactElement {
   const [proxyLoading, setProxyLoading] = useState(true);
   const [proxyMode, setProxyMode] = useState<ProxyMode | null>(null);
   const [proxySaving, setProxySaving] = useState(false);
+  const [testUrl, setTestUrl] = useState('https://www.baidu.com');
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testRunning, setTestRunning] = useState(false);
   const [proxyProtocol, setProxyProtocol] = useState<'http' | 'https' | 'socks5' | null>('http');
   const [proxyHost, setProxyHost] = useState('');
   const [proxyPort, setProxyPort] = useState<number | ''>('');
@@ -391,29 +394,32 @@ export default function ConfigPage(): React.ReactElement {
   }
 
   async function testProxy(): Promise<void> {
-    setErr(null);
+    setTestRunning(true);
+    setTestResult(null);
     try {
-      // 优先发送表单当前值(不保存 DB 也能测);后端有 body 则用 body,无 body 则读 DB
-      const body =
-        proxyProtocol && proxyHost && proxyPort
-          ? {
-              protocol: proxyProtocol,
-              host: proxyHost,
-              port: Number(proxyPort),
-              username: proxyUsername || undefined,
-              password: proxyPassword || undefined,
-            }
-          : undefined;
-      const result = await api.post<{ ok: boolean; message: string; latencyMs: number }>(
+      const body: Record<string, unknown> = {};
+      if (proxyProtocol && proxyHost && proxyPort) {
+        body.protocol = proxyProtocol;
+        body.host = proxyHost;
+        body.port = Number(proxyPort);
+        body.username = proxyUsername || undefined;
+        body.password = proxyPassword || undefined;
+      }
+      if (testUrl.trim()) body.testUrl = testUrl.trim();
+      const result = await api.post<{ ok: boolean; message: string; latencyMs: number; details?: string }>(
         '/admin/proxy/test',
-        body,
+        Object.keys(body).length > 0 ? body : undefined,
       );
-      alert(
-        result.ok ? `OK (${result.latencyMs}ms)\n${result.message}` : `FAIL\n${result.message}`,
+      setTestResult(
+        result.ok
+          ? `✅ Connected (${result.latencyMs}ms)\n${result.message}${result.details ? '\n' + result.details : ''}`
+          : `❌ Failed\n${result.message}`,
       );
       void refreshProxy();
     } catch (e) {
-      setErr((e as Error).message);
+      setTestResult(`❌ Error: ${(e as Error).message}`);
+    } finally {
+      setTestRunning(false);
     }
   }
 
@@ -935,6 +941,28 @@ export default function ConfigPage(): React.ReactElement {
               data-testid="proxy-test"
             >
               Test Connection
+            </Button>
+            {proxyCfg && (
+              <Button onClick={() => openProxyEdit(proxyCfg)} data-testid="proxy-edit">
+                Edit
+              </Button>
+            )}
+            <input
+              type="text"
+              placeholder="Test URL (e.g. https://www.baidu.com)"
+              value={testUrl}
+              onChange={(e) => setTestUrl(e.target.value)}
+              className="rounded-md border border-input bg-background px-3 py-1.5 text-sm w-64"
+              data-testid="proxy-test-url"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={testRunning}
+              onClick={() => { void testProxy(); }}
+              data-testid="proxy-test"
+            >
+              {testRunning ? 'Testing...' : 'Test'}
             </Button>
             {proxyCfg && (
               <Button onClick={() => openProxyEdit(proxyCfg)} data-testid="proxy-edit">

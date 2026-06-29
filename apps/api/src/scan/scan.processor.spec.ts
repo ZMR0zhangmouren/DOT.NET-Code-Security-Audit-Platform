@@ -25,13 +25,13 @@ describe('ScanProcessor (mocked runner)', () => {
     expect(kickoff).not.toHaveBeenCalled();
   });
 
-  it('process:happy → 调 runner.kickoff(scanRunId)', async () => {
+  it('process:happy → 调 runner.kickoff(scanRunId, undefined)', async () => {
     await processor.process({
       id: 'job-1',
       data: { scanRunId: 'scan-1' },
       attemptsMade: 0,
     } as never);
-    expect(kickoff).toHaveBeenCalledWith('scan-1');
+    expect(kickoff).toHaveBeenCalledWith('scan-1', undefined);
     expect(kickoff).toHaveBeenCalledTimes(1);
   });
 
