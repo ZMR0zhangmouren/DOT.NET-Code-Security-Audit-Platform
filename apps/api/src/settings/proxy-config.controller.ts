@@ -43,7 +43,29 @@ export class ProxyConfigController {
 
   @Post('test')
   @Roles('admin')
-  async test(): Promise<{ ok: boolean; message: string; latencyMs: number }> {
+  async test(
+    @Body() body?: Partial<UpsertDto>,
+  ): Promise<{ ok: boolean; message: string; latencyMs: number }> {
+    // 允许前端传临时配置(不保存到 DB),用于"没保存时也能测"
+    if (body && body.protocol && body.host && body.port) {
+      const start = Date.now();
+      try {
+        const ok = await this.proxy.testWithConfig({
+          protocol: body.protocol,
+          host: body.host,
+          port: body.port,
+          username: body.username ?? undefined,
+          password: body.password ?? undefined,
+        });
+        return {
+          ok,
+          message: ok ? 'proxy reachable' : 'proxy unreachable',
+          latencyMs: Date.now() - start,
+        };
+      } catch (e) {
+        return { ok: false, message: (e as Error).message, latencyMs: Date.now() - start };
+      }
+    }
     return this.proxy.testConnection();
   }
 }

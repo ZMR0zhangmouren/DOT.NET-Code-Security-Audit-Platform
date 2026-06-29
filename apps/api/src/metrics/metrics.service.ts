@@ -1,26 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import type { ScanRunStatus, Severity } from '@platform/shared';
 import { Counter, Histogram, register } from 'prom-client';
-import type { Registry } from 'prom-client';
 
 /**
  * §10.3 Prometheus 业务 metric 集中管理(MVP)
  *
  * 设计取舍(详见 CLAUDE.md / 决策记录):
  *   - 不用 @InjectMetric + decorator 模式 —— 集中一个 Service 里更易 mock + 单测
- *     (其它 module 直接 `app.get(MetricsService)` 或 DI 注入即可)
- *   - 4 类 metric 类型都在一个 service 暴露 —— Counter(扫描/漏洞/工具/token) +
- *     Histogram(扫描耗时) + Gauge(队列深度,预留) + Summary(留作 Phase 4 用)
- *   - Counter vs Histogram:
- *       * token → Counter:简单累加,适合 rate() 展示 QPS/总用量
- *       * 扫描耗时 → Histogram:bucket 量化 P50/P95
- *   - 复用 prom-client 默认 `register`(全局单例);与 default metrics(node_cpu / process_*)共用同一 registry,
- *     /api/metrics 一并吐出
+ *   - 4 类 metric 类型都在一个 service 暴露 —— Counter/Histogram/Gauge
+ *   - 复用 prom-client 默认 `register`(全局单例)
  *
- * 边界:
- *   - 不接真 Prometheus server / Grafana
- *   - 不写 PromQL 示例
- *   - 不动业务逻辑
+ * 边界:不接真 Prometheus server / Grafana / PromQL
  */
 @Injectable()
 export class MetricsService {
@@ -30,12 +20,12 @@ export class MetricsService {
   private readonly agentCallTotal: Counter<'model' | 'tool'>;
   private readonly agentTokenUsedTotal: Counter<'model' | 'type'>;
 
-  constructor(registry: Registry = register) {
+  constructor() {
     this.scanTotal = new Counter({
       name: 'scan_total',
       help: 'Total number of scan runs by final status',
       labelNames: ['project', 'status', 'triggerType'] as const,
-      registers: [registry],
+      registers: [register],
     });
 
     // 桶选择:30s/60s/120s/300s —— 适配 §5.3 实测 115s 平均扫描耗时
@@ -45,28 +35,28 @@ export class MetricsService {
       help: 'Scan run duration in seconds (from kickoff starting → finalize)',
       labelNames: ['triggerType'] as const,
       buckets: [30, 60, 120, 300],
-      registers: [registry],
+      registers: [register],
     });
 
     this.vulnFoundTotal = new Counter({
       name: 'vuln_found_total',
       help: 'Total number of vulnerabilities recorded by agent (counted at recordVulnerability success)',
       labelNames: ['severity', 'vulnType'] as const,
-      registers: [registry],
+      registers: [register],
     });
 
     this.agentCallTotal = new Counter({
       name: 'agent_call_total',
       help: 'Total number of OpenAI tool calls invoked by scan agent',
       labelNames: ['model', 'tool'] as const,
-      registers: [registry],
+      registers: [register],
     });
 
     this.agentTokenUsedTotal = new Counter({
       name: 'agent_token_used_total',
       help: 'Total OpenAI tokens used by scan agent (prompt + completion separately labeled)',
       labelNames: ['model', 'type'] as const,
-      registers: [registry],
+      registers: [register],
     });
   }
 

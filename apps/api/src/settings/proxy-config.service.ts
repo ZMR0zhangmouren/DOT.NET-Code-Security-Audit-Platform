@@ -184,6 +184,33 @@ export class ProxyConfigService {
     return { ok: false, message: msg, latencyMs };
   }
 
+  /** 用临时配置测连通性(不保存 DB),前端填完表即可测试 */
+  async testWithConfig(cfg: {
+    protocol: 'http' | 'https' | 'socks5' | null;
+    host: string;
+    port: number;
+    username?: string;
+    password?: string;
+  }): Promise<boolean> {
+    if (!cfg.protocol || !cfg.host || !cfg.port) return false;
+    const net = await import('node:net');
+    return new Promise<boolean>((resolve) => {
+      const sock = new net.Socket();
+      let settled = false;
+      const finish = (v: boolean): void => {
+        if (settled) return;
+        settled = true;
+        sock.destroy();
+        resolve(v);
+      };
+      sock.setTimeout(5000);
+      sock.once('connect', () => finish(true));
+      sock.once('timeout', () => finish(false));
+      sock.once('error', () => finish(false));
+      sock.connect(cfg.port, cfg.host);
+    });
+  }
+
   recordTestResult(status: 'success' | 'failed', message: string): void {
     const row = this.db.select().from(proxyConfigs).get() as ProxyConfigRow | undefined;
     if (!row) return;

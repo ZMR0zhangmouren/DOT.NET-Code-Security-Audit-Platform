@@ -37,7 +37,7 @@ interface GitCredential {
 
 interface ProxyConfig {
   id: string;
-  protocol: 'http' | 'https' | 'socks' | null;
+  protocol: 'http' | 'https' | 'socks5' | null;
   host: string | null;
   port: number | null;
   username: string | null;
@@ -238,7 +238,7 @@ export default function ConfigPage(): React.ReactElement {
   const [proxyLoading, setProxyLoading] = useState(true);
   const [proxyMode, setProxyMode] = useState<ProxyMode | null>(null);
   const [proxySaving, setProxySaving] = useState(false);
-  const [proxyProtocol, setProxyProtocol] = useState<'http' | 'https' | 'socks' | null>('http');
+  const [proxyProtocol, setProxyProtocol] = useState<'http' | 'https' | 'socks5' | null>('http');
   const [proxyHost, setProxyHost] = useState('');
   const [proxyPort, setProxyPort] = useState<number | ''>('');
   const [proxyUsername, setProxyUsername] = useState('');
@@ -393,8 +393,20 @@ export default function ConfigPage(): React.ReactElement {
   async function testProxy(): Promise<void> {
     setErr(null);
     try {
+      // 优先发送表单当前值(不保存 DB 也能测);后端有 body 则用 body,无 body 则读 DB
+      const body =
+        proxyProtocol && proxyHost && proxyPort
+          ? {
+              protocol: proxyProtocol,
+              host: proxyHost,
+              port: Number(proxyPort),
+              username: proxyUsername || undefined,
+              password: proxyPassword || undefined,
+            }
+          : undefined;
       const result = await api.post<{ ok: boolean; message: string; latencyMs: number }>(
         '/admin/proxy/test',
+        body,
       );
       alert(
         result.ok ? `OK (${result.latencyMs}ms)\n${result.message}` : `FAIL\n${result.message}`,
@@ -974,7 +986,9 @@ export default function ConfigPage(): React.ReactElement {
                   value={proxyProtocol ?? ''}
                   onChange={(e) =>
                     setProxyProtocol(
-                      e.target.value === '' ? null : (e.target.value as 'http' | 'https' | 'socks'),
+                      e.target.value === ''
+                        ? null
+                        : (e.target.value as 'http' | 'https' | 'socks5'),
                     )
                   }
                   className="rounded-md border border-input bg-background px-3 py-2"

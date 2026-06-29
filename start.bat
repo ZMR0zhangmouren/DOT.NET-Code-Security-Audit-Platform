@@ -1,11 +1,11 @@
-﻿@echo off
-REM Force UTF-8 console output (BOM at file start makes cmd read as UTF-8)
+@echo off
 chcp 65001 >nul
 setlocal
 
 REM ============================================================
 REM  Audit Platform - Start Script (double-click)
-REM  Starts NestJS API (port 3030) and Vite Web (port 5180) in background
+REM  Starts NestJS API and Vite Web in truly independent windows
+REM  Closing this window does NOT kill the services.
 REM ============================================================
 
 set "ROOT=%~dp0"
@@ -38,13 +38,9 @@ if not exist "%LOGDIR%" mkdir "%LOGDIR%"
 
 REM Check port already in use
 netstat -ano | findstr ":3030.*LISTENING" >nul 2>&1
-if not errorlevel 1 (
-    echo [WARN] Port 3030 already in use - API may already be running.
-)
+if not errorlevel 1 echo [WARN] Port 3030 already in use - API may already be running.
 netstat -ano | findstr ":5180.*LISTENING" >nul 2>&1
-if not errorlevel 1 (
-    echo [WARN] Port 5180 already in use - Web may already be running.
-)
+if not errorlevel 1 echo [WARN] Port 5180 already in use - Web may already be running.
 
 echo ============================================================
 echo   NestJS API  -> http://127.0.0.1:3030
@@ -54,26 +50,26 @@ echo   Logs:  %LOGDIR%\api.log   %LOGDIR%\web.log
 echo   Stop:  double-click stop.bat
 echo ============================================================
 
-REM Start API in background (dev mode = nest --watch, auto-compile)
-start "AuditPlatform-API" /B cmd /c "cd /d ""%ROOT%"" && pnpm --filter @platform/api dev > ""%LOGDIR%\api.log"" 2>&1"
+REM Launch services in NEW cmd windows (not /B — these are independent)
+REM Closing this launcher window does NOT affect them.
+start "AuditPlatform-API" cmd /c "cd /d ""%ROOT%"" && pnpm --filter @platform/api dev > ""%LOGDIR%\api.log"" 2>&1"
+start "AuditPlatform-Web" cmd /c "cd /d ""%ROOT%"" && pnpm --filter @platform/web dev > ""%LOGDIR%\web.log"" 2>&1"
 
-REM Start Web in background
-start "AuditPlatform-Web" /B cmd /c "cd /d ""%ROOT%"" && pnpm --filter @platform/web dev > ""%LOGDIR%\web.log"" 2>&1"
-
-REM Wait for boot (NestJS first compile can take ~10s)
+REM Wait for boot
 echo [INFO] Waiting for services to start (~12s)...
 timeout /t 12 /nobreak >nul
 
 echo.
 echo [OK] Startup complete
-echo   API:    http://127.0.0.1:3030/api/health
-echo   Web:    http://localhost:5180
+echo   Health: http://127.0.0.1:3030/api/health
 echo   Login:  http://localhost:5180/login  (admin / admin123)
 echo.
+echo You can close this window now — services continue running.
 
-REM Auto-open browser (best-effort, non-blocking)
+REM Auto-open browser
 start "" "http://localhost:5180" 2>nul
 
-echo Press any key to close this window (services keep running in background).
-pause >nul
+REM Auto-close after 5 seconds (no user interaction needed)
+timeout /t 5 /nobreak >nul
 endlocal
+exit
