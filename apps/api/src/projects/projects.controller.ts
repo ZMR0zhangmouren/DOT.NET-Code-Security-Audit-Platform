@@ -6,12 +6,13 @@ import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { AuthenticatedUser } from '../auth/jwt.strategy.js';
 
-import type { ProjectsService } from './projects.service.js';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import {
+  ProjectsService,
   type ProjectMemberPublic,
   type ProjectMemberRole,
   type ProjectPublic,
-} from './projects.service.js'; // ProjectsService 需运行时引用(NestJS DI)
+} from './projects.service.js'; // ProjectsService 需运行时引用(NestJS DI,import type 会让 ESM 擦除导致 DI 找不到)
 
 interface CreateDto {
   name: string;

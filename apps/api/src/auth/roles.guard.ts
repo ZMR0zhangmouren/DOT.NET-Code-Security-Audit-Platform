@@ -1,6 +1,11 @@
-import type { CanActivate, ExecutionContext } from '@nestjs/common';
-import { ForbiddenException, Injectable } from '@nestjs/common';
-import type { Reflector } from '@nestjs/core';
+import {
+  ForbiddenException,
+  Injectable,
+  type CanActivate,
+  type ExecutionContext,
+} from '@nestjs/common';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { Reflector } from '@nestjs/core'; // 运行时引用(NestJS DI 元数据需要 Reflector class 在 emitDecoratorMetadata 时存在,import type 会让 ESM 擦除导致 DI 找不到)
 import type { Request } from 'express';
 
 import type { JwtPayload } from './auth.service.js';
