@@ -250,6 +250,7 @@ pnpm --filter @platform/api seed
 - `/scan-doc` —— 扫 `需求文档.md` 残留过时表述(LangGraph、Orchestrator)+ 检查 §2.8 必备章节
 - 编辑 `.md` 文件后自动跑 markdownlint-cli2
 - `git push --force` / `git push origin main` 命令会被拦截(平台期 + 子仓库期都适用)
+- **开发约定(用户已确认,2026-06-29):本地推进,不远程推送**。所有 commit 仅留本地 main,不要主动 `git push` 或主动配 git remote;如有跨机器同步需求请走 `git bundle` / patch 文件方式
 
 ## 下一步候选(2026-06-29 休息点后)
 
