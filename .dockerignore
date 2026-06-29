@@ -1,0 +1,75 @@
+# =============================================================
+#  .dockerignore  ——  排除不该进 docker build context 的东西
+#
+#  注意:`storage/` 既是源代码目录(apps/api/src/storage/),也是
+#  运行时数据目录(apps/api/storage/、根 storage/)。用 negations
+#  明确白名单源代码目录,避免误删源码。
+# =============================================================
+
+# --- VCS / 本地配置 ---
+.git
+.gitignore
+.gitattributes
+.claude
+.github
+
+# --- 编辑器 / 临时 ---
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# --- 依赖(在容器内 pnpm install)---
+**/node_modules
+node_modules
+.pnpm-store
+
+# --- Build 产物(容器内 pnpm build)---
+# 排除本地 build 出的 dist(避免 stale .tsbuildinfo 干扰),容器内 pnpm build 会重新出
+**/dist
+**/build
+**/.turbo
+**/.cache
+**/.next
+**/coverage
+**/*.tsbuildinfo
+
+# --- 运行时数据(在 volume 里)---
+# 顶层 storage/(本地直跑生成的 SQLite)
+storage/
+storage/*
+# apps/api/storage/(dev 直跑生成的产物)
+apps/api/storage/
+apps/api/storage/*
+# logs/(start.bat 写出来的)
+logs/
+logs/*
+# 其他临时/测试残留
+**/tmp-test-*
+**/__test_*
+**/*.log
+**/*.sqlite
+**/*.sqlite-shm
+**/*.sqlite-wal
+**/*.db
+**/*.db-journal
+**/output
+**/tmp
+
+# --- 文档(非必要,体积)---
+docs/
+
+# --- CI / 测试残留 ---
+.eslintcache
+.prettiercache
+*.lcov
+
+# --- 子仓库(由 compose bind-mount,无需 build 进镜像)---
+dotnet-security-audit-skill/
+
+# --- Docker 自己 ---
+# 保留 Dockerfile(被 build 看到)
+# 保留 docker-compose.yml(用户使用)
+# 保留 .dockerignore(本身)

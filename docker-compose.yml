@@ -1,0 +1,131 @@
+# =============================================================
+#  .NET 代码安全审计平台  ——  Docker Compose (Phase 4)
+#
+#  三个服务:
+#    api    : NestJS (port 3030,主机 127.0.0.1,只内网)
+#    web    : nginx  (port 8080,主机 127.0.0.1,只内网)
+#    redis  : BullMQ 后端(无主机端口,容器内网)
+#
+#  用法:
+#    docker compose up -d --build       # 启动
+#    docker compose logs -f api         # 看 API 日志
+#    docker compose down                # 停
+#    docker compose down -v             # 停 + 删 volumes(清数据)
+#
+#  端口:
+#    3030  api
+#    8080  web(浏览器访问这里)
+#    6379  redis(无主机映射,只容器内网)
+# =============================================================
+name: dotnet-audit-platform
+
+services:
+  # -------------------- 1) Redis(BullMQ 后端)--------------------
+  redis:
+    image: redis:7-alpine
+    container_name: dotnet-audit-redis
+    restart: unless-stopped
+    # 容器内部网络,无主机端口映射(§6.5 锁定:不暴露公网)
+    expose:
+      - '6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    volumes:
+      - redis_data:/data
+    networks:
+      - audit-net
+
+  # -------------------- 2) API(NestJS)--------------------
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: dotnet-audit-api
+    restart: unless-stopped
+    environment:
+      # Server
+      - NODE_ENV=production
+      - PORT=3030
+      - HOST=0.0.0.0 # 容器内需要监听 0.0.0.0(nginx 在容器外)
+      - LOG_LEVEL=info
+      # Database(SQLite via volume,默认 ./apps/api/storage/dev.sqlite)
+      - DATABASE_URL=file:./storage/dev.sqlite
+      - STORAGE_ROOT=./storage
+      # AI(可选;空则用 §5.7 UI 配的)
+      - OPENAI_API_KEY=
+      - OPENAI_BASE_URL=https://api.openai.com/v1
+      - DEFAULT_MODEL=gpt-4o
+      # 子仓库绑定(子仓库 bundle 已 git pull,本地路径)
+      - SKILL_BUNDLE_REPO_PATH=./dotnet-security-audit-skill
+      # 安全(生产环境务必用 docker secret / env 文件覆盖)
+      - APP_MASTER_KEY=${APP_MASTER_KEY:-change-me-please-32-chars-min!!}
+      - SESSION_SECRET=${SESSION_SECRET:-change-me-please-32-chars-min!!}
+      - JWT_SECRET=${JWT_SECRET:-change-me-jwt-secret-in-production}
+      # CORS(nginx 在容器外,不再需要 cors;但 API 也支持独立暴露)
+      - CORS_ORIGINS=http://localhost:8090,http://127.0.0.1:8090
+      # BullMQ
+      - SCAN_MAX_CONCURRENT=${SCAN_MAX_CONCURRENT:-2}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # Bull-Board
+      - BULL_BOARD_BASIC_USER=${BULL_BOARD_BASIC_USER:-admin}
+      - BULL_BOARD_BASIC_PASSWORD=${BULL_BOARD_BASIC_PASSWORD:-admin}
+    ports:
+      # 127.0.0.1:3030 → 容器:3030(只内网,符合 §6.5 部署锁定)
+      - '127.0.0.1:3030:3030'
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      # 持久化:SQLite + ScanRun 产物 + 上传 + 报告
+      - api_storage:/app/apps/api/storage
+      # 嵌入的子仓库 bundle 路径(只读挂载,平台不修改它)
+      - ./dotnet-security-audit-skill:/app/dotnet-security-audit-skill:ro
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3030/api/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - audit-net
+
+  # -------------------- 3) Web(nginx + React 静态)--------------------
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: dotnet-audit-web
+    restart: unless-stopped
+    # 不需要 env
+    ports:
+      # 主机 8090 → 容器 80(避开 lab-dvwa 用的 8080 / juice-shop 用的 3333)
+      - '127.0.0.1:8090:80'
+    depends_on:
+      - api
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:80/healthz']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - audit-net
+
+# -------------------- Volumes --------------------
+# docker volume 由 docker 自动管理(命名 `<project>_api_storage`)
+# 位置:docker volume inspect dotnet-audit-platform_api_storage
+volumes:
+  api_storage:
+    driver: local
+  redis_data:
+    driver: local
+
+# -------------------- Networks --------------------
+networks:
+  audit-net:
+    driver: bridge
