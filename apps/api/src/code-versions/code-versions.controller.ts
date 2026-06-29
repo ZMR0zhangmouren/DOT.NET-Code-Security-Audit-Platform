@@ -10,6 +10,7 @@ import {
   Get,
   Param,
   Post,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -17,6 +18,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface.js';
 import { diskStorage } from 'multer';
+import type { Request } from 'express';
 
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
@@ -77,12 +79,13 @@ export class CodeVersionsController {
     } as MulterOptions),
   )
   async upload(
-    @Param('id') projectId: string,
+    @Param("id") projectId: string,
     @CurrentUser() user: AuthenticatedUser,
     @UploadedFile() file: Express.Multer.File | undefined,
-    @Body() body: UploadMetaDto,
+    @Req() req: Request,
   ): Promise<CodeVersionPublic> {
     if (!file) throw new BadRequestException('file is required');
+    const body = (req.body ?? {}) as UploadMetaDto;
     if (!body.label || !body.label.trim()) {
       safeUnlink(file.path);
       throw new BadRequestException('label is required');
