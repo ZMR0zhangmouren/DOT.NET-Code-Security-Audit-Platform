@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { json, urlencoded } from 'express';
 
 import { createQueueBoardAuthMiddleware } from './admin/queue-board/queue-board-auth.middleware.js';
 import { QueueBoardService } from './admin/queue-board/queue-board.service.js';
@@ -11,6 +12,13 @@ import { ScanQueueService } from './scan/scan-queue.service.js'; // runtime ref 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const logger = new Logger('Bootstrap');
+
+  // Body-parser 上限:json/urlencoded 上限 50MB,raw 上限 100MB
+  // 满足 §5.2 Q4 的要求 (zip ≤ 500MB, git ≤ 1GB;请求体 ≤ 100MB)
+  // 不设置默认 100KB — 会触发 413 Payload Too Large(即使走了 multer)
+  const expressApp = app.getHttpAdapter().getInstance() as import('express').Express;
+  expressApp.use(json({ limit: '50mb' }));
+  expressApp.use(urlencoded({ limit: '50mb', extended: true }));
 
   // CORS(开发期允许 web dev server;Phase 1 锁定默认 5180)
   const corsOrigins = (process.env['CORS_ORIGINS'] ?? 'http://localhost:5180')
@@ -32,13 +40,7 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix('api');
 
   // §11 Q6 + Q13 —— Bull-Board Admin UI(/admin/queue,无 /api 前缀)
-  // 在 NestJS listen 之前挂 express 中间件 + adapter router;它走 app.use(),
-  // 不受 setGlobalPrefix('api') 影响。
-  // 鉴权先于 adapter(JWT admin 或 Basic admin/admin),未通过 401。
-  // 用 app.getHttpAdapter().getInstance() 拿原始 express 实例。
-  // 关键:QueueBoardService 不在 DI 阶段注入 Queue,由 main.ts 显式 attachQueue()
-  // 避免 QueueBoardModule 重复 registerQueue(共享 ScanModule 的同一实例)。
-  const expressApp = app.getHttpAdapter().getInstance();
+  // expressApp 已在上面 body-parser 初始化中拿到,这里复用。
   const queueBoard = app.get(QueueBoardService);
   const authService = app.get(AuthService);
   const scanQueueService = app.get(ScanQueueService);

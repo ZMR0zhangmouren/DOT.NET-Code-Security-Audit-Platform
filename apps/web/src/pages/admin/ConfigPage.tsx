@@ -75,6 +75,7 @@ export default function ConfigPage(): React.ReactElement {
   const [defaultModel, setDefaultModel] = useState('');
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
+  const [availableModelsText, setAvailableModelsText] = useState('gpt-4o\ngpt-4o-mini');
   const [discovering, setDiscovering] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -101,8 +102,12 @@ export default function ConfigPage(): React.ReactElement {
     setLabel('');
     setBaseUrl('https://api.openai.com/v1');
     setApiKey('');
-    setDefaultModel('');
-    setSelectedModels([]);
+    const initialModels = availableModelsText
+      .split(/[\n,]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    setSelectedModels(initialModels);
+    setDefaultModel(initialModels[0] ?? '');
     setDiscoveredModels([]);
   }
 
@@ -524,9 +529,13 @@ export default function ConfigPage(): React.ReactElement {
                   </Button>
                 )}
               </div>
-              {allModelOptions.length === 0 ? (
+              {allModelOptions.length === 0 && mode.kind === 'edit' ? (
                 <p className="text-xs text-muted-foreground">
-                  暂无可用模型;若新建,先在 API Key 输入完整 key 后用 Phase 2 的"未保存探测"功能。
+                  暂无可用模型;点"探测可用模型(/v1/models)"拉取。
+                </p>
+              ) : allModelOptions.length === 0 && mode.kind === 'create' ? (
+                <p className="text-xs text-muted-foreground">
+                  在下方 textarea 输入模型名(一行一个),然后点 Create。
                 </p>
               ) : (
                 <ul className="grid gap-1 md:grid-cols-2" data-testid="model-list">
@@ -561,6 +570,20 @@ export default function ConfigPage(): React.ReactElement {
               <p className="mt-2 text-xs text-muted-foreground">
                 checkbox = 可用模型;radio = 默认模型(必须先勾选)
               </p>
+              {mode.kind === 'create' && (
+                <label className="mt-3 flex flex-col gap-1 text-sm">
+                  <span className="text-muted-foreground">
+                    Available models (one per line; parsed into selections above on open)
+                  </span>
+                  <textarea
+                    value={availableModelsText}
+                    onChange={(e) => setAvailableModelsText(e.target.value)}
+                    rows={4}
+                    className="rounded-md border border-input bg-background px-3 py-2 font-mono"
+                    placeholder="gpt-4o&#10;gpt-4o-mini"
+                  />
+                </label>
+              )}
             </div>
 
             <div className="mt-3 flex justify-end gap-2">
