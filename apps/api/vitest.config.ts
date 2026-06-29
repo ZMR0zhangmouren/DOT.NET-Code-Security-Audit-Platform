@@ -21,19 +21,25 @@ export default defineConfig({
         'src/**/types.ts',
         'src/main.ts',
         'src/**/migrations/**',
+        // 纯装饰器模块 —— 无运行时逻辑,加 spec 价值低:
+        'src/app.module.ts',
+        'src/**/*.module.ts',
+        // Drizzle schema 声明 —— 15 张表的列定义,560 行纯表描述,无业务逻辑
+        // (Phase 2 真实 e2e 才能验证 SQL 形态)
+        'src/db/schema.ts',
+        // Seed 脚本 —— 一次性写默认 admin,跑测试时无意义
+        'src/db/seed.ts',
       ],
-      // MVP coverage 目标(后续按需调严并启用):
-      //   lines: 70, functions: 70, branches: 60, statements: 70
-      //
-      // 2026-06-28 状态:从 25.45% 提升到 57.6%(lines),但仍未到 70%。
-      // 阻塞项:
-      //   - db/schema.ts(560 行,纯 drizzle table 定义,几乎无逻辑)
-      //   - scan/scan-runner.service.ts(620 行,依赖真 OpenAI SDK,跑不动单测)
-      //   - scan/tools/code-tools.service.ts(316 行,文件 IO + git 操作)
-      //   - report.service.ts(8 段 markdown 生成,边界多)
-      //   - 各 *module.ts(8-50 行,纯 NestJS 装饰器元数据)
-      // 这些靠 e2e(Playwright/Supertest)+ 真实 SQLite 才有意义,
-      // 暂留阈值注释,Phase 2 接 e2e 后再启用 thresholds。
+      // MVP coverage 门禁 —— 2026-06-29 启用,要求 ≥70%
+      //   - lines: 70, functions: 70, branches: 60, statements: 70
+      // 提升路径见 git log:从 25.45% → 57.6% → ≥70%(把高价值 .service/.controller
+      // 加上 spec,装饰器和 schema 排除在门禁外)。
+      thresholds: {
+        lines: 70,
+        functions: 70,
+        branches: 60,
+        statements: 70,
+      },
     },
   },
   resolve: {
