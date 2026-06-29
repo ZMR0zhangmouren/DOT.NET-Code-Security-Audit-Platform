@@ -130,7 +130,7 @@ export default function ProjectDetailPage(): React.ReactElement {
   }, [id]);
 
   useEffect(() => {
-    if (tab === 'scans') {
+    if (tab === 'scans' || tab === 'overview') {
       void refreshScans();
     } else if (tab === 'members') {
       void refreshMembers();
@@ -367,46 +367,66 @@ export default function ProjectDetailPage(): React.ReactElement {
           </nav>
 
           {tab === 'overview' && (
-            <section className="rounded-lg border bg-card p-6 text-sm">
-              <dl className="grid grid-cols-[120px_1fr] gap-2">
-                <dt className="text-muted-foreground">Project ID</dt>
-                <dd className="font-mono text-xs">{project.id}</dd>
-                <dt className="text-muted-foreground">Owner</dt>
-                <dd className="font-mono text-xs">{project.ownerId}</dd>
-                <dt className="text-muted-foreground">Created</dt>
-                <dd>{new Date(project.createdAt).toLocaleString()}</dd>
-                <dt className="text-muted-foreground">Updated</dt>
-                <dd>{new Date(project.updatedAt).toLocaleString()}</dd>
-              </dl>
-              <div className="mt-6 border-t pt-4">
-                <h3 className="mb-2 text-sm font-semibold">
-                  已接通章节(§5.1 / §5.3 / §4.2.8 / §5.5 / §5.7)
-                </h3>
-                <ul className="space-y-1 text-xs text-muted-foreground">
-                  <li>
-                    <strong>项目 (5.1):</strong> CRUD + 删除 + 编辑;Owner 可改所有字段
-                  </li>
-                  <li>
-                    <strong>Versions (5.2 P0 zip):</strong> CodeVersion 表已落库;zip 上传 UI 已在
-                    Scans 标签里(显示 N versions + 上传按钮);Phase 2 接私有 git / GitHub 拉取
-                  </li>
-                  <li>
-                    <strong>Scans (5.3):</strong> 列表 + 实时页 + 报告 + 多 ScanRun 对比(5.4) +
-                    Quality Gate 字段已显示;入口覆盖统计(2026-06 commit 1bc9df4)
-                  </li>
-                  <li>
-                    <strong>Members (4.2.8):</strong> 列表 / grant by username / role 切换 /
-                    revoke(2026-06 commit bde81f9);仅 owner 或 lead 可改
-                  </li>
-                  <li>
-                    <strong>Vuln Library (5.5):</strong> 列表 + 详情 + 状态流转(2026-06 commit
-                    b8ddff4)
-                  </li>
-                  <li>
-                    <strong>系统配置 (5.7):</strong> AI Key + git 凭证 + 代理 + 用户管理 (2026-06
-                    commit 6b8cb83)
-                  </li>
-                </ul>
+            <section className="space-y-4">
+              {/* 项目元信息 */}
+              <div className="rounded-lg border bg-card p-6 text-sm">
+                <dl className="grid grid-cols-[120px_1fr] gap-2">
+                  <dt className="text-muted-foreground">Project ID</dt>
+                  <dd className="font-mono text-xs">{project.id}</dd>
+                  <dt className="text-muted-foreground">Owner</dt>
+                  <dd className="font-mono text-xs">{project.ownerId}</dd>
+                  <dt className="text-muted-foreground">Created</dt>
+                  <dd>{new Date(project.createdAt).toLocaleString()}</dd>
+                  <dt className="text-muted-foreground">Updated</dt>
+                  <dd>{new Date(project.updatedAt).toLocaleString()}</dd>
+                </dl>
+              </div>
+
+              {/* 代码版本列表 */}
+              <div className="rounded-lg border bg-card p-6 text-sm">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="font-semibold">Code Versions</h3>
+                  <span className="text-xs text-muted-foreground">
+                    {versions.length} version{versions.length !== 1 ? 's' : ''} · switch to Scans
+                    tab to upload
+                  </span>
+                </div>
+                {versions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No code versions yet. Go to the Scans tab and upload a zip file.
+                  </p>
+                ) : (
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted text-left">
+                        <th className="p-2">Label</th>
+                        <th className="p-2">Source</th>
+                        <th className="p-2">Files</th>
+                        <th className="p-2">LOC</th>
+                        <th className="p-2">Size</th>
+                        <th className="p-2">Checksum (SHA-256)</th>
+                        <th className="p-2">Uploaded</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {versions.map((v) => (
+                        <tr key={v.id} className="border-b" data-testid="version-row">
+                          <td className="p-2 font-mono font-semibold">
+                            {v.versionLabel ?? '(no label)'}
+                          </td>
+                          <td className="p-2">{v.sourceType}</td>
+                          <td className="p-2">{v.fileCount}</td>
+                          <td className="p-2">{v.locCount}</td>
+                          <td className="p-2">
+                            {v.sizeBytes ? `${Math.round(v.sizeBytes / 1024)} KB` : '-'}
+                          </td>
+                          <td className="p-2 font-mono">{v.checksum.slice(0, 12)}…</td>
+                          <td className="p-2">{new Date(v.uploadedAt).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </section>
           )}

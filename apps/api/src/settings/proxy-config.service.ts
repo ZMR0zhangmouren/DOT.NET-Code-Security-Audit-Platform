@@ -213,7 +213,10 @@ export class ProxyConfigService {
   }
 
   /** 用 HTTP 请求验证代理是否可达目标 URL(不做 TCP 端口探测) */
-  async httpProbeViaProxy(proxy: { host: string; port: number; auth?: string }, targetUrl: string): Promise<{ ok: boolean; latencyMs: number; message: string }> {
+  async httpProbeViaProxy(
+    proxy: { host: string; port: number; auth?: string },
+    targetUrl: string,
+  ): Promise<{ ok: boolean; latencyMs: number; message: string }> {
     const start = Date.now();
     try {
       const http = await import('node:http');
@@ -225,13 +228,28 @@ export class ProxyConfigService {
       const ok = await new Promise<boolean>((resolve) => {
         const sock = new net.Socket();
         sock.setTimeout(5000);
-        sock.once('connect', () => { sock.destroy(); resolve(true); });
-        sock.once('timeout', () => { sock.destroy(); resolve(false); });
-        sock.once('error', () => { sock.destroy(); resolve(false); });
+        sock.once('connect', () => {
+          sock.destroy();
+          resolve(true);
+        });
+        sock.once('timeout', () => {
+          sock.destroy();
+          resolve(false);
+        });
+        sock.once('error', () => {
+          sock.destroy();
+          resolve(false);
+        });
         sock.connect(proxy.port, proxy.host);
       });
       const ms = Date.now() - start;
-      return { ok, latencyMs: ms, message: ok ? `proxy ${proxy.host}:${proxy.port} reachable → ${targetUrl}` : `proxy unreachable` };
+      return {
+        ok,
+        latencyMs: ms,
+        message: ok
+          ? `proxy ${proxy.host}:${proxy.port} reachable → ${targetUrl}`
+          : `proxy unreachable`,
+      };
     } catch (e) {
       return { ok: false, latencyMs: Date.now() - start, message: (e as Error).message };
     }

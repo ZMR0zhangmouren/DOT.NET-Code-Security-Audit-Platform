@@ -79,7 +79,7 @@ export class CodeVersionsController {
     } as MulterOptions),
   )
   async upload(
-    @Param("id") projectId: string,
+    @Param('id') projectId: string,
     @CurrentUser() user: AuthenticatedUser,
     @UploadedFile() file: Express.Multer.File | undefined,
     @Req() req: Request,

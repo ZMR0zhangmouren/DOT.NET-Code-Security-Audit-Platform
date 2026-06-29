@@ -32,6 +32,9 @@ export default function ScanRunNewDialog({
     defaultCodeVersionId ?? versions[0]?.id ?? '',
   );
   const [skillBundleId, setSkillBundleId] = useState('');
+  const [bundles, setBundles] = useState<
+    { id: string; version: string; gitCommit: string; isActive: boolean }[]
+  >([]);
   const [aiKeyId, setAiKeyId] = useState('');
   const [aiKeys, setAiKeys] = useState<{ id: string; label: string; defaultModel: string }[]>([]);
   const [coverageMode, setCoverageMode] = useState<CoverageMode>('FULL');
@@ -42,10 +45,20 @@ export default function ScanRunNewDialog({
     if (defaultCodeVersionId) setCodeVersionId(defaultCodeVersionId);
   }, [defaultCodeVersionId]);
 
+  // 取 AI Keys + active Skill Bundles,自动填充默认值
   useEffect(() => {
     api
       .get<{ id: string; label: string; defaultModel: string }[]>('/settings/ai-keys')
       .then(setAiKeys)
+      .catch(() => {});
+    api
+      .get<{ id: string; version: string; gitCommit: string; isActive: boolean }[]>(
+        '/skill-bundle-versions?active=true',
+      )
+      .then((list) => {
+        setBundles(list);
+        if (list.length === 1) setSkillBundleId(list[0]!.id);
+      })
       .catch(() => {});
   }, []);
 
@@ -55,8 +68,8 @@ export default function ScanRunNewDialog({
       setErr('请先上传一个 CodeVersion(§5.2)');
       return;
     }
-    if (!skillBundleId.trim()) {
-      setErr('skillBundleId 必填(暂用占位字符串 active 触发,后端 404 即报错)');
+    if (!skillBundleId) {
+      setErr('请选择 Skill Bundle(至少一个 active bundle)');
       return;
     }
     setSubmitting(true);
@@ -65,7 +78,7 @@ export default function ScanRunNewDialog({
       const run = await api.post<ScanRunPublic>('/scan-runs', {
         projectId,
         codeVersionId,
-        skillBundleId: skillBundleId.trim(),
+        skillBundleId,
         aiKeyId: aiKeyId || undefined,
         triggerType: 'manual',
         coverageMode,
@@ -110,15 +123,20 @@ export default function ScanRunNewDialog({
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-muted-foreground">Skill Bundle ID *</span>
-            <input
+            <span className="text-muted-foreground">Skill Bundle *</span>
+            <select
               value={skillBundleId}
               onChange={(e) => setSkillBundleId(e.target.value)}
-              placeholder="active (or real bundle id)"
-              required
-              className="rounded-md border border-input bg-background px-3 py-2 font-mono text-xs"
+              className="rounded-md border border-input bg-background px-3 py-2"
               data-testid="scan-new-bundle"
-            />
+            >
+              <option value="">(select bundle)</option>
+              {bundles.map((b) => (
+                <option key={b.id} value={b.id}>
+                  v{b.version} — commit {b.gitCommit.slice(0, 8)}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-muted-foreground">Coverage Mode</span>
