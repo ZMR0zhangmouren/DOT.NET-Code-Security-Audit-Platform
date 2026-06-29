@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import { mkdirSync, writeFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, writeFileSync, statSync, readdirSync, readFileSync, existsSync } from 'node:fs';
+import { join, sep } from 'node:path';
 
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import AdmZip from 'adm-zip';
@@ -101,6 +101,7 @@ export class ReportService {
   toMarkdown(scanRunId: string): string {
     const g = this.gather(scanRunId);
     const lines: string[] = [];
+    const outputRoot = g.run.outputRoot;
 
     // §1 Header
     lines.push(`# Audit Report — ${g.project?.name ?? g.run.projectId}`);
@@ -191,6 +192,78 @@ export class ReportService {
       }
     }
     lines.push('');
+
+    // §3 阶段产物清单(Phase 3 #I 真 skill 产出)
+    lines.push('## 3. 阶段产物清单(Phase 3 #I — 子仓库 skill 真产出)');
+    lines.push('');
+    if (!outputRoot || !existsSync(outputRoot)) {
+      lines.push('_output_root 不存在,跳过阶段产物扫描。_');
+    } else {
+      const stageDirs = [
+        { dir: 'route_mapping', label: 'route-mapper' },
+        { dir: 'framework_audit', label: 'framework-{aspnetcore,...}-audit' },
+        { dir: 'vuln_audit', label: 'vuln-scanner' },
+        { dir: 'exploit_chain', label: 'exploit-chain-audit' },
+        { dir: 'quality', label: 'quality gates (final_anchor)' },
+      ];
+      lines.push('| 阶段 | 子目录 | 文件数 | 代表文件 |');
+      lines.push('|---|---|---|---|');
+      for (const sd of stageDirs) {
+        const sub = join(outputRoot, sd.dir);
+        const files = listDirSafe(sub);
+        const rep = pickRepresentative(files);
+        lines.push(`| ${sd.label} | \`${sd.dir}/\` | ${files.length} | ${rep} |`);
+      }
+      lines.push('');
+
+      // §3.1 入口覆盖矩阵 —— 从 route_mapping 真读
+      const routeFiles = listDirSafe(join(outputRoot, 'route_mapping')).filter((n) =>
+        n.endsWith('.json'),
+      );
+      if (routeFiles.length > 0) {
+        lines.push('### 3.1 入口覆盖矩阵(从 route_mapping 真读)');
+        lines.push('');
+        const routeData = tryReadFirstJson(join(outputRoot, 'route_mapping'));
+        if (routeData) {
+          const routes = (routeData as { routes?: unknown[] }).routes;
+          if (Array.isArray(routes) && routes.length > 0) {
+            lines.push(`- 总入口数: ${routes.length}`);
+            lines.push(
+              `- 总入口文件: \`${routeFiles[0]?.split(sep).join('/') ?? ''}\` / 同目录 .md 同步落盘`,
+            );
+            lines.push('');
+            const byMethod = new Map<string, number>();
+            for (const r of routes) {
+              const m = (r as { http_method?: string }).http_method ?? '?';
+              byMethod.set(m, (byMethod.get(m) ?? 0) + 1);
+            }
+            lines.push('| HTTP Method | Count |');
+            lines.push('|---|---|');
+            for (const [m, c] of Array.from(byMethod.entries()).sort((a, b) => b[1] - a[1])) {
+              lines.push(`| ${m} | ${c} |`);
+            }
+            lines.push('');
+          }
+        }
+      }
+
+      // §3.3 Framework 覆盖矩阵 —— 从 framework_audit 真读
+      const fwFiles = listDirSafe(join(outputRoot, 'framework_audit')).filter((n) =>
+        n.endsWith('.md'),
+      );
+      if (fwFiles.length > 0) {
+        lines.push('### 3.3 Framework 覆盖矩阵(从 framework_audit 真读)');
+        lines.push('');
+        lines.push('| Framework | Report |');
+        lines.push('|---|---|');
+        for (const f of fwFiles) {
+          const fname = f.split(sep).pop() ?? f;
+          const framework = fname.split('_')[0] ?? fname;
+          lines.push(`| ${framework} | \`framework_audit/${fname}\` |`);
+        }
+        lines.push('');
+      }
+    }
 
     // §4 漏洞列表
     lines.push('## 3. 漏洞列表');
@@ -388,4 +461,38 @@ function groupCount<T>(arr: T[], key: (t: T) => string): Record<string, number> 
     out[k] = (out[k] ?? 0) + 1;
   }
   return out;
+}
+
+/* ------------------------- Phase 3 #I helpers ------------------------- */
+
+function listDirSafe(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  try {
+    return readdirSync(dir);
+  } catch {
+    return [];
+  }
+}
+
+function pickRepresentative(files: string[]): string {
+  if (files.length === 0) return '_无_';
+  // 优先选 routes_<ts>.json / framework_audit/<x>_<ts>.md 这类带 ts 的
+  const sorted = [...files].sort();
+  return `\`${sorted[0]?.split(sep).join('/') ?? ''}\``;
+}
+
+function tryReadFirstJson(dir: string): unknown | null {
+  if (!existsSync(dir)) return null;
+  const files = listDirSafe(dir)
+    .filter((n) => n.endsWith('.json'))
+    .sort();
+  for (const f of files) {
+    try {
+      const buf = readFileSync(join(dir, f), 'utf8');
+      return JSON.parse(buf) as unknown;
+    } catch {
+      continue;
+    }
+  }
+  return null;
 }

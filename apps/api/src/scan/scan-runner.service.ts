@@ -7,6 +7,8 @@ import type { Severity } from '@platform/shared';
 import { eq } from 'drizzle-orm';
 import OpenAI from 'openai';
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { AgentTracesService } from '../agent-traces/agent-traces.service.js'; // runtime ref (NestJS DI)
 import { decryptSecret, getMasterKey } from '../common/crypto.util.js';
 import { DATABASE, type Db } from '../db/database.module.js';
 import {
@@ -18,7 +20,11 @@ import {
   vulnerabilities,
 } from '../db/schema.js';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { MetricsService } from '../metrics/metrics.service.js'; // runtime ref (NestJS DI)
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ScanGateway } from '../realtime/scan.gateway.js'; // runtime ref (@WebSocketServer)
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { SkillExecutorService, type SkillRunResult } from '../skills/skill-executor.service.js';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { StorageService } from '../storage/storage.service.js'; // runtime ref (NestJS DI)
 
@@ -46,6 +52,9 @@ export class ScanRunnerService implements OnModuleDestroy {
     @Inject(DATABASE) private readonly db: Db,
     private readonly storage: StorageService,
     private readonly gateway: ScanGateway,
+    private readonly skillExecutor: SkillExecutorService,
+    private readonly traces: AgentTracesService,
+    private readonly metrics: MetricsService,
   ) {}
 
   onModuleDestroy(): void {
@@ -98,6 +107,16 @@ export class ScanRunnerService implements OnModuleDestroy {
     const run = this.loadRun(scanRunId);
     if (!run) throw new Error(`scanRun ${scanRunId} not found`);
 
+    // §10.3 —— scan_duration_seconds 从 runScan 入口开始计时,
+    // finalize / markFailed / markCanceled / aborted 都 observe(共一处结束,语义统一)
+    let endDuration: (() => number) | null = this.metrics.startScanDurationTimer(run.triggerType);
+    const observeDuration = (): void => {
+      if (endDuration) {
+        endDuration();
+        endDuration = null;
+      }
+    };
+
     const cv = this.db
       .select()
       .from(codeVersions)
@@ -129,6 +148,8 @@ export class ScanRunnerService implements OnModuleDestroy {
     // 2. resolve AI key
     const key = this.pickActiveKey();
     if (!key) {
+      observeDuration();
+      this.metrics.incScanTotal(run.projectId, 'failed', run.triggerType);
       this.markFailed(scanRunId, 'no active AI key configured');
       return;
     }
@@ -145,7 +166,7 @@ export class ScanRunnerService implements OnModuleDestroy {
     this.emitLog(scanRunId, 'info', `code root: ${codeRoot}`);
 
     // 5. code filesystem (sandbox + recordVuln)
-    const codeFs = new CodeFileSystem(codeRoot, this.db);
+    const codeFs = new CodeFileSystem(codeRoot, this.db, this.metrics);
 
     // 6. openai client
     const openai = new OpenAI({
@@ -173,6 +194,36 @@ export class ScanRunnerService implements OnModuleDestroy {
       },
     ];
 
+    // Phase 3 §1.2/2.7 —— Trace:把 initial system + user 入库(traceIndex 1,2)
+    // 后续 assistant / tool 在主循环里继续累加。失败的 recordTrace 不影响主流程。
+    let traceIndex = 1;
+    try {
+      this.traces.recordTrace({
+        scanRunId,
+        traceIndex: traceIndex++,
+        role: 'system',
+        content: combined,
+        model: key.defaultModel,
+      });
+      this.traces.recordTrace({
+        scanRunId,
+        traceIndex: traceIndex++,
+        role: 'user',
+        content:
+          `Begin the audit pipeline.\n` +
+          `- scan_run_id: ${scanRunId}\n` +
+          `- project_id: ${cv.projectId}\n` +
+          `- code_version_id: ${cv.id}\n` +
+          `- code root (sandbox): ${codeRoot}\n` +
+          `- coverage_mode: ${run.coverageMode}\n` +
+          `- bundle_version: ${bundle.version}\n` +
+          `Use readFile / searchCode to inspect code; use recordVulnerability when you find a finding.`,
+        model: key.defaultModel,
+      });
+    } catch (e) {
+      this.logger.warn(`trace record failed (init): ${(e as Error).message}`);
+    }
+
     const seenSkills = new Set<string>();
     let lastStage = 'init';
 
@@ -198,9 +249,18 @@ export class ScanRunnerService implements OnModuleDestroy {
           tool_choice: 'auto',
           temperature: 0.2,
         });
+        // §10.3 —— agent_token_used_total:记录 prompt / completion usage
+        const usage = completion.usage;
+        const model = completion.model ?? key.defaultModel;
+        if (usage) {
+          this.metrics.addAgentTokens(model, 'prompt', usage.prompt_tokens ?? 0);
+          this.metrics.addAgentTokens(model, 'completion', usage.completion_tokens ?? 0);
+        }
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         this.emitLog(scanRunId, 'error', `openai call failed: ${msg}`);
+        observeDuration();
+        this.metrics.incScanTotal(run.projectId, 'failed', run.triggerType);
         this.markFailed(scanRunId, msg);
         return;
       }
@@ -212,6 +272,37 @@ export class ScanRunnerService implements OnModuleDestroy {
         break;
       }
       messages.push(msg);
+
+      // Phase 3 §1.2/2.7 —— Trace:assistant response(含 tool_calls + usage)
+      try {
+        const usage = completion.usage;
+        this.traces.recordTrace({
+          scanRunId,
+          traceIndex: traceIndex++,
+          role: 'assistant',
+          content: typeof msg.content === 'string' ? msg.content : null,
+          toolCalls: (msg.tool_calls ?? [])
+            .filter(
+              (tc): tc is OpenAI.Chat.Completions.ChatCompletionMessageFunctionToolCall =>
+                tc.type === 'function',
+            )
+            .map((tc) => ({
+              id: tc.id,
+              type: tc.type,
+              function: {
+                name: tc.function.name,
+                arguments: tc.function.arguments,
+              },
+            })),
+          finishReason: choice.finish_reason ?? null,
+          promptTokens: usage?.prompt_tokens ?? null,
+          completionTokens: usage?.completion_tokens ?? null,
+          totalTokens: usage?.total_tokens ?? null,
+          model: completion.model ?? key.defaultModel,
+        });
+      } catch (e) {
+        this.logger.warn(`trace record failed (assistant): ${(e as Error).message}`);
+      }
 
       const toolCalls = msg.tool_calls ?? [];
       if (toolCalls.length === 0) {
@@ -227,18 +318,104 @@ export class ScanRunnerService implements OnModuleDestroy {
         lastStage = name;
         this.emitLog(scanRunId, 'info', `[tool] ${name}(${shortJson(args)})`);
         seenSkills.add(name);
+        // §10.3 —— agent_call_total:每个 tool call inc 一次(model 来自本次 completion)
+        const toolModel = completion.model ?? key.defaultModel;
+        this.metrics.incAgentCall(toolModel, name);
 
         const result = await this.executeTool(name, args, codeFs, scanRunId);
+        const toolContent = JSON.stringify(result);
         messages.push({
           role: 'tool',
           tool_call_id: call.id,
-          content: JSON.stringify(result),
+          content: toolContent,
         });
+        // Phase 3 §1.2/2.7 —— Trace:tool response
+        try {
+          this.traces.recordTrace({
+            scanRunId,
+            traceIndex: traceIndex++,
+            role: 'tool',
+            content: toolContent,
+            toolCallId: call.id,
+            model: key.defaultModel,
+          });
+        } catch (e) {
+          this.logger.warn(`trace record failed (tool): ${(e as Error).message}`);
+        }
       }
     }
 
-    // 9. finalize
-    await this.finalize(scanRunId, seenSkills, outputRoot);
+    // 9. Phase 3 #I —— 让子仓库 skill 真产出文件
+    //    顺序:route-mapper → framework-aspnetcore-audit → vuln-scanner → exploit-chain
+    //    每跑完一个就 emitLog + 把输出文件路径加进 seenSkills(用于后续 finalize 时写 SkillExecution)
+    const skillResults: SkillRunResult[] = [];
+    try {
+      this.emitLog(scanRunId, 'info', "skill 'route-mapper' / start");
+      const r1 = await this.skillExecutor.runRouteMapperSkill(scanRunId);
+      this.skillExecutor.recordSkillExecution(scanRunId, r1, 'route_mapper');
+      this.emitLog(
+        scanRunId,
+        'info',
+        `skill 'route-mapper' / 完成 / 写 ${r1.outputFiles.join(', ')} (${r1.recordCount} entries)`,
+      );
+      seenSkills.add('dotnet-route-mapper');
+      skillResults.push(r1);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.emitLog(scanRunId, 'warn', `skill 'route-mapper' 失败: ${msg}`);
+    }
+
+    try {
+      this.emitLog(scanRunId, 'info', "skill 'framework-aspnetcore-audit' / start");
+      const r2 = await this.skillExecutor.runFrameworkAuditSkill(scanRunId, 'aspnetcore');
+      this.skillExecutor.recordSkillExecution(scanRunId, r2, 'framework');
+      this.emitLog(
+        scanRunId,
+        'info',
+        `skill 'framework-aspnetcore-audit' / 完成 / 写 ${r2.outputFiles.join(', ')} (${r2.recordCount} csproj)`,
+      );
+      seenSkills.add('dotnet-aspnet-core-audit');
+      skillResults.push(r2);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.emitLog(scanRunId, 'warn', `skill 'framework-aspnetcore-audit' 失败: ${msg}`);
+    }
+
+    try {
+      this.emitLog(scanRunId, 'info', "skill 'vuln-scanner' / start");
+      const r3 = await this.skillExecutor.runVulnScannerSkill(scanRunId);
+      this.skillExecutor.recordSkillExecution(scanRunId, r3, 'vuln');
+      this.emitLog(
+        scanRunId,
+        'info',
+        `skill 'vuln-scanner' / 完成 / 写 ${r3.outputFiles.join(', ')} (${r3.recordCount} deps)`,
+      );
+      seenSkills.add('dotnet-vuln-scanner');
+      skillResults.push(r3);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.emitLog(scanRunId, 'warn', `skill 'vuln-scanner' 失败: ${msg}`);
+    }
+
+    try {
+      this.emitLog(scanRunId, 'info', "skill 'exploit-chain' / start");
+      const r4 = await this.skillExecutor.runExploitChainSkill(scanRunId);
+      this.skillExecutor.recordSkillExecution(scanRunId, r4, 'exploit_chain');
+      this.emitLog(
+        scanRunId,
+        'info',
+        `skill 'exploit-chain' / 完成 / 写 ${r4.outputFiles.join(', ')} (${r4.recordCount} chains)`,
+      );
+      seenSkills.add('dotnet-exploit-chain-audit');
+      skillResults.push(r4);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.emitLog(scanRunId, 'warn', `skill 'exploit-chain' 失败: ${msg}`);
+    }
+
+    // 10. finalize
+    observeDuration(); // §10.3 —— succeeded 路径 observe 耗时
+    await this.finalize(scanRunId, seenSkills, outputRoot, skillResults);
   }
 
   /* ----------------------------- tool exec ----------------------------- */
@@ -290,6 +467,7 @@ export class ScanRunnerService implements OnModuleDestroy {
     scanRunId: string,
     seenSkills: Set<string>,
     outputRoot: string,
+    skillResults: SkillRunResult[] = [],
   ): Promise<void> {
     // 写一条汇总报告(MVP 简版:仅记录调用过的工具列表 + 漏洞计数)
     try {
@@ -307,6 +485,11 @@ export class ScanRunnerService implements OnModuleDestroy {
           {
             scanRunId,
             skillsObserved: Array.from(seenSkills),
+            skillOutputs: skillResults.map((r) => ({
+              skill: r.skillName,
+              files: r.outputFiles,
+              recordCount: r.recordCount,
+            })),
             finishedAt: Date.now(),
           },
           null,
@@ -385,6 +568,13 @@ export class ScanRunnerService implements OnModuleDestroy {
         `(${coverage.controllerCoveragePercent === null ? 'N/A' : (coverage.controllerCoveragePercent / 100).toFixed(2) + '%'} controller, ` +
         `${coverage.coveredRoutes.length}/${coverage.totalRoutes} routes)`,
     );
+    // §10.3 —— scan_total 记录 succeeded 终态(配合 controller.create 的 queued inc,各状态独立计数)
+    const finishedRun = this.loadRun(scanRunId);
+    this.metrics.incScanTotal(
+      finishedRun?.projectId ?? 'unknown',
+      'succeeded',
+      finishedRun?.triggerType ?? 'manual',
+    );
     runningScans.delete(scanRunId);
   }
 
@@ -397,6 +587,7 @@ export class ScanRunnerService implements OnModuleDestroy {
         codeVersionId: string;
         skillBundleId: string;
         coverageMode: 'FULL' | 'SAMPLE';
+        triggerType: 'manual' | 'scheduled' | 'replay';
         startedAt: number | null;
       }
     | undefined {
@@ -407,6 +598,7 @@ export class ScanRunnerService implements OnModuleDestroy {
           codeVersionId: string;
           skillBundleId: string;
           coverageMode: 'FULL' | 'SAMPLE';
+          triggerType: 'manual' | 'scheduled' | 'replay';
           startedAt: number | null;
         }
       | undefined;
@@ -454,6 +646,9 @@ export class ScanRunnerService implements OnModuleDestroy {
     this.emitStatus(scanRunId, 'failed');
     this.emitComplete(scanRunId, 'BLOCKED');
     this.emitLog(scanRunId, 'error', `failed: ${message}`);
+    // §10.3 —— scan_total failed 终态(若 controller.create 已 inc queued,这是第二条独立计数)
+    const run = this.loadRun(scanRunId);
+    this.metrics.incScanTotal(run?.projectId ?? 'unknown', 'failed', run?.triggerType ?? 'manual');
     runningScans.delete(scanRunId);
   }
 
@@ -468,6 +663,13 @@ export class ScanRunnerService implements OnModuleDestroy {
       .run();
     this.emitStatus(scanRunId, 'canceled');
     this.emitComplete(scanRunId, 'BLOCKED');
+    // §10.3 —— scan_total canceled 终态
+    const run = this.loadRun(scanRunId);
+    this.metrics.incScanTotal(
+      run?.projectId ?? 'unknown',
+      'canceled',
+      run?.triggerType ?? 'manual',
+    );
     runningScans.delete(scanRunId);
   }
 

@@ -1,5 +1,5 @@
 /**
- * Drizzle schema —— 严格对应 ./需求文档.md §4.2 锁定的 14 个实体
+ * Drizzle schema —— 严格对应 ./需求文档.md §4.2 锁定的 14 个实体 + Phase 3 §1.2/2.7 新增 agent_traces
  *
  * 改动需先 /decision-check,任何与 §11 Q1–Q17 决策冲突的字段调整都视为破坏性变更。
  *
@@ -556,5 +556,42 @@ export const aiKeys = sqliteTable(
   (t) => ({
     activeIdx: index('ai_keys_active_idx').on(t.isActive),
     providerIdx: index('ai_keys_provider_idx').on(t.provider),
+  }),
+);
+
+// =====================================================================
+// Phase 3 §1.2/2.7 AgentTrace —— 主 Agent 调 LLM 的每条 message + tool_call 持久化
+// 兑现 §1.2 目标 4 "可观测、可复现" + §10.3 "主 Agent Trace 检索 (P2)"
+//
+// 关键设计:
+// - traceIndex 单调递增(1..N),由 ScanRunnerService 在主循环里维护 —— 顺序等同于
+//   OpenAI responses[] 数组下标,允许并行 tool call 也能按时间序列回放
+// - role 含 'tool' 这一非 OpenAI 标准 chat role;tool_call_id 关联到对应 assistant.tool_calls[i].id
+// - content 用 TEXT(非 JSON 模式),因为部分 tool response 可能是非 JSON 字符串 / markdown
+// - tool_calls 用 JSON 模式,$type 校验 shape 防止脏数据写入
+// - 不接 OpenAI Traces API、不接 LangSmith,自存即可
+// =====================================================================
+export const agentTraces = sqliteTable(
+  'agent_traces',
+  {
+    id: text('id').primaryKey(),
+    scanRunId: text('scan_run_id')
+      .notNull()
+      .references(() => scanRuns.id),
+    traceIndex: integer('trace_index').notNull(), // 1..N,OpenAI call 顺序
+    role: text('role', { enum: ['system', 'user', 'assistant', 'tool'] }).notNull(),
+    content: text('content'), // 文本内容;非 JSON 内容也能存
+    toolCalls: text('tool_calls', { mode: 'json' }).$type<Array<Record<string, unknown>>>(),
+    toolCallId: text('tool_call_id'), // 当 role='tool' 时关联到 assistant.tool_calls[i].id
+    finishReason: text('finish_reason'),
+    promptTokens: integer('prompt_tokens'),
+    completionTokens: integer('completion_tokens'),
+    totalTokens: integer('total_tokens'),
+    model: text('model'),
+    createdAt: integer('created_at').notNull(),
+  },
+  (t) => ({
+    scanRunIdx: index('agent_traces_scan_run_idx').on(t.scanRunId),
+    indexIdx: index('agent_traces_index_idx').on(t.scanRunId, t.traceIndex),
   }),
 );

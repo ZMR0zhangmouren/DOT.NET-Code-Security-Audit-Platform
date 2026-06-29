@@ -10,6 +10,7 @@ import { and, eq } from 'drizzle-orm';
 
 import { DATABASE, type Db } from '../../db/database.module.js';
 import { scanRuns, vulnerabilities, vulnLibraryEntries } from '../../db/schema.js';
+import type { MetricsService } from '../../metrics/metrics.service.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -95,6 +96,8 @@ export class CodeFileSystem {
   constructor(
     sandboxRoot: string,
     @Inject(DATABASE) private readonly db: Db,
+    // §10.3 —— 可选依赖,允许单测里 new CodeFileSystem(...) 不传 metrics
+    private readonly metrics?: MetricsService,
   ) {
     this.path = new SandboxPath(sandboxRoot);
   }
@@ -292,6 +295,9 @@ export class CodeFileSystem {
         updatedAt: now,
       })
       .run();
+
+    // §10.3 —— vuln_found_total:recordVulnerability 成功落库后 inc
+    this.metrics?.incVulnFound(input.severity, input.vulnType);
 
     return { vulnId, libraryId, fingerprint };
   }

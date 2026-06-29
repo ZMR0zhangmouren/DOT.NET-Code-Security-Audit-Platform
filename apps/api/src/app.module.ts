@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 
 import { AdminModule } from './admin/admin.module.js';
+import { AgentTracesModule } from './agent-traces/agent-traces.module.js';
 import { AgentsModule } from './agents/agents.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CodeVersionsModule } from './code-versions/code-versions.module.js';
 import { DatabaseModule } from './db/database.module.js';
 import { HealthModule } from './health/health.module.js';
+import { MetricsModule } from './metrics/metrics.module.js';
 import { ProjectsModule } from './projects/projects.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
 import { ReportModule } from './report/report.module.js';
@@ -43,6 +45,8 @@ import { VulnsModule } from './vulns/vulns.module.js';
     AgentsModule,
     RealtimeModule,
     AdminModule,
+    AgentTracesModule,
+    MetricsModule,
   ],
 })
 export class AppModule {}

@@ -5,6 +5,8 @@ import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { AuthenticatedUser } from '../auth/jwt.strategy.js';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { MetricsService } from '../metrics/metrics.service.js'; // 运行时引用
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SkillBundlesService } from '../skill-bundles/skill-bundles.service.js'; // 运行时引用
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -31,6 +33,7 @@ export class ScanController {
   constructor(
     private readonly scan: ScanService,
     private readonly skillBundles: SkillBundlesService,
+    private readonly metrics: MetricsService,
   ) {}
 
   @Post('scan-runs')
@@ -39,14 +42,19 @@ export class ScanController {
     @Body() body: CreateScanDto,
   ): Promise<ScanRunPublic> {
     const triggeredBy = user?.sub ?? 'unknown';
-    return this.scan.create({
+    const triggerType = body.triggerType ?? 'manual';
+    const result = await this.scan.create({
       projectId: body.projectId,
       codeVersionId: body.codeVersionId,
       skillBundleId: body.skillBundleId,
-      triggerType: body.triggerType ?? 'manual',
+      triggerType,
       triggeredBy,
       coverageMode: body.coverageMode,
     });
+    // §10.3 —— scan_total 记录"创建"事件,status=queued
+    // (finalize / cancel / failed 在 ScanRunnerService 中分别 inc)
+    this.metrics.incScanTotal(body.projectId, 'queued', triggerType);
+    return result;
   }
 
   @Get('scan-runs/:id')

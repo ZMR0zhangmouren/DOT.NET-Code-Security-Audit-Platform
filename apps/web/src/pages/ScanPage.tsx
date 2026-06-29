@@ -142,6 +142,13 @@ export default function ScanPage(): React.ReactElement {
             >
               View Report (§5.4) →
             </Link>
+            <Link
+              to={`/projects/${projectId}/scans/${runId}/trace`}
+              className="rounded border bg-card px-3 py-1 text-xs hover:underline"
+              data-testid="scan-view-trace"
+            >
+              View Agent Trace (§1.2/2.7) →
+            </Link>
             <span
               className={`rounded px-2 py-0.5 text-xs ${gateClass(run.gateDecision)}`}
               data-testid="scan-gate"

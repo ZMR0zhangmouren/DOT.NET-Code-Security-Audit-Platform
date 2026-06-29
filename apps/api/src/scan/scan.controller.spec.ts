@@ -38,6 +38,7 @@ async function makeController(): Promise<{
     recomputeCoverage: ReturnType<typeof vi.fn>;
   };
   skillBundles: { listActive: ReturnType<typeof vi.fn> };
+  metrics: { incScanTotal: ReturnType<typeof vi.fn> };
 }> {
   const mod = await import('./scan.controller.js');
   const svc = {
@@ -49,13 +50,21 @@ async function makeController(): Promise<{
     recomputeCoverage: vi.fn(() => ({ id: 'scan-1' })),
   };
   const skillBundles = { listActive: vi.fn(() => []) };
-  const controller = new mod.ScanController(svc as never, skillBundles as never);
-  return { controller, svc, skillBundles };
+  // §10.3 —— MetricsService stub(测试里不验 metric,只确保 controller 调用时不 crash)
+  const metrics = {
+    incScanTotal: vi.fn(),
+    incVulnFound: vi.fn(),
+    incAgentCall: vi.fn(),
+    addAgentTokens: vi.fn(),
+    startScanDurationTimer: vi.fn(() => () => 0),
+  };
+  const controller = new mod.ScanController(svc as never, skillBundles as never, metrics as never);
+  return { controller, svc, skillBundles, metrics };
 }
 
 describe('ScanController', () => {
   it('POST /scan-runs create → user.sub 作为 triggeredBy', async () => {
-    const { controller, svc } = await makeController();
+    const { controller, svc, metrics } = await makeController();
     const user: UserLike = { sub: 'usr-1', role: 'admin' };
     const out = await controller.create(user, {
       projectId: 'p1',
@@ -73,10 +82,12 @@ describe('ScanController', () => {
       triggeredBy: 'usr-1',
       coverageMode: 'FULL',
     });
+    // §10.3 —— scan_total{project=p1, status=queued, triggerType=manual}
+    expect(metrics.incScanTotal).toHaveBeenCalledWith('p1', 'queued', 'manual');
   });
 
   it('POST /scan-runs create 无 user → triggeredBy = "unknown"', async () => {
-    const { controller, svc } = await makeController();
+    const { controller, svc, metrics } = await makeController();
     await controller.create(undefined as never, {
       projectId: 'p1',
       codeVersionId: 'cv-1',
@@ -91,10 +102,12 @@ describe('ScanController', () => {
       triggeredBy: 'unknown',
       coverageMode: undefined,
     });
+    // §10.3 —— scan_total{project=p1, status=queued, triggerType=scheduled}
+    expect(metrics.incScanTotal).toHaveBeenCalledWith('p1', 'queued', 'scheduled');
   });
 
   it('POST /scan-runs create 不传 triggerType → 默认 manual', async () => {
-    const { controller, svc } = await makeController();
+    const { controller, svc, metrics } = await makeController();
     const user: UserLike = { sub: 'u', role: 'admin' };
     await controller.create(user, {
       projectId: 'p1',
@@ -102,6 +115,8 @@ describe('ScanController', () => {
       skillBundleId: 'sb-1',
     });
     expect(svc.create).toHaveBeenCalledWith(expect.objectContaining({ triggerType: 'manual' }));
+    // §10.3 —— triggerType 缺省时 incScanTotal 也得用 'manual'
+    expect(metrics.incScanTotal).toHaveBeenCalledWith('p1', 'queued', 'manual');
   });
 
   it('GET /scan-runs/:id get → 调 svc.get(id)', async () => {

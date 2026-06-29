@@ -2,10 +2,13 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import type { ConnectionOptions } from 'bullmq';
 
+import { AgentTracesModule } from '../agent-traces/agent-traces.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { DatabaseModule } from '../db/database.module.js';
+import { MetricsModule } from '../metrics/metrics.module.js';
 import { RealtimeModule } from '../realtime/realtime.module.js';
 import { SkillBundlesModule } from '../skill-bundles/skill-bundles.module.js';
+import { SkillsModule } from '../skills/skills.module.js';
 import { StorageModule } from '../storage/storage.module.js';
 import { VulnsModule } from '../vulns/vulns.module.js';
 
@@ -35,6 +38,9 @@ function readRedisConnection(): ConnectionOptions {
     VulnsModule,
     AuthModule,
     SkillBundlesModule,
+    SkillsModule,
+    AgentTracesModule,
+    MetricsModule,
     BullModule.forRoot({
       connection: readRedisConnection(),
     }),

@@ -36,6 +36,20 @@
       "when": 1782720000000,
       "tag": "0005_code_version_clone",
       "breakpoints": false
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1782810000000,
+      "tag": "0006_agent_traces",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1782704694287,
+      "tag": "0006_free_dagger",
+      "breakpoints": true
     }
   ]
 }

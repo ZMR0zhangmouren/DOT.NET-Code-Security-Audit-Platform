@@ -36,19 +36,40 @@ describe('ScanRunnerService cancel + lifecycle', () => {
 
   it('cancel:不存在的 scanRunId → 返回 false', async () => {
     const mod = await import('./scan-runner.service.js');
-    const svc = new mod.ScanRunnerService({} as never, {} as never, {} as never);
+    const svc = new mod.ScanRunnerService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
     expect((svc as unknown as RunnerInstance).cancel('scan-no-such')).toBe(false);
   });
 
   it('isRunning:false for unknown', async () => {
     const mod = await import('./scan-runner.service.js');
-    const svc = new mod.ScanRunnerService({} as never, {} as never, {} as never);
+    const svc = new mod.ScanRunnerService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
     expect((svc as unknown as RunnerInstance).isRunning('scan-x')).toBe(false);
   });
 
   it('onModuleDestroy → 正常调用无 throw', async () => {
     const mod = await import('./scan-runner.service.js');
-    const svc = new mod.ScanRunnerService({} as never, {} as never, {} as never);
+    const svc = new mod.ScanRunnerService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
     expect(() => (svc as unknown as RunnerInstance).onModuleDestroy()).not.toThrow();
   });
 

@@ -190,6 +190,12 @@ pnpm --filter @platform/api seed
 - `GET /api/admin/queue/health` —— §11 Q6 轻量健康端点(`f2dda10`)
 - 报告渲染(react-markdown + 章节导航 IntersectionObserver)—— §5.4(`dcac49a`)
 - 队列字段加到 `/api/health`:`queueDepth` / `queueRunning` / `queueMaxConcurrent`(`583ff18`)
+- **`agent_traces` 表 + Agent Trace 端点** —— Phase 3 §1.2/2.7(`xxx`)
+  - `GET /api/scan-runs/:id/trace` —— 完整 trace 列表(按 traceIndex 升序)
+  - `GET /api/scan-runs/:id/trace/summary` —— 顶部 summary(total / token / model)
+  - `GET /api/agent-traces/:id` —— 单条 trace
+  - ScanRunnerService 主循环在每次 OpenAI response / tool call / tool response 调 `AgentTracesService.recordTrace`,traceIndex 单调递增
+- **`/projects/:id/scans/:runId/trace` 页面** —— 时间线卡片(role 彩色 chip / content 折叠 / tool_calls JSON viewer / token footer)
 
 ### 四、基础设施
 
@@ -206,6 +212,24 @@ pnpm --filter @platform/api seed
 - ✅ **需求文档前后统一**:`7b6e018` 消除 §1.2 / §2.1 / §4.2.5 / §5.4 / §2.5 等 10 处前后不一致
 - ✅ **ProxyConfig `socks` → `socks5`** 升级,符合 Q13(`7b6e018`)
 - ✅ **数据库 17 表**:`0000_awesome_tarot.sql` 至 `0005_code_version_clone.sql` 共 6 个迁移文件(5 个 schema 迁移 + 1 个 _journal.json)
+
+### Phase 3 #I —— 子仓库 skill 真产出(2026-06-29)
+
+| 阶段 | 落地 | 文件 |
+|---|---|---|
+| 子仓库 SKILL.md 改 frontmatter | `tools: [read_file, write_file]` + `outputs: [...]` 段 | `dotnet-security-audit-skill/skills/{dotnet-route-mapper,dotnet-aspnet-core-audit,dotnet-vuln-scanner,dotnet-exploit-chain-audit}/SKILL.md`(独立 commit `b561820`) |
+| 平台 vendor SkillExecutor | 4 个 run 方法(route-mapper / framework-audit / vuln-scanner / exploit-chain)真产 JSON + MD | `apps/api/src/skills/skill-executor.service.ts`(新)+ `apps/api/src/skills/skills.module.ts`(新) |
+| ScanRunner 集成 | kickoff 后 → 4 个 skill 跑 → 写 SkillExecution 行 + emitLog | `apps/api/src/scan/scan-runner.service.ts`(改)`step logger "skill 'route-mapper' / start / 完成 / 写 routes_*.json (3 entries)"` |
+| Report §3 真读产物 | 新增"3. 阶段产物清单" + §3.1 入口覆盖矩阵 + §3.3 Framework 覆盖矩阵 | `apps/api/src/report/report.service.ts`(改)|
+| 测试 | 10 个新单测(纯解析函数 5 + 4 个 run 方法 × fixture 1 + 集成 1) | `apps/api/src/skills/skill-executor.service.spec.ts`(新)|
+
+**关键设计取舍**:
+
+- **vendor vs 真 invoke** —— 选 vendor 跑(OpenAI Agents SDK 的 multi-agent + invokeSkill Tool 在 MVP 阶段不稳,先把 4 个关键 skill 的"读 + 写 + 输出"用 vendor 落地;Phase 3 K 任务做 agent_traces 真 invoke 联动)
+- **route-mapper 输出 JSON** —— 选 JSON(平台更好 parse,§3.1 入口覆盖矩阵直接吃)
+- **agent_traces 表** —— Phase 3 §1.2 已加(parallel agent 完成),本任务只做 trace metadata fallback,不动 schema
+
+**验证**:10/10 skill-executor 测试 + 10/10 report 测试全过,`pnpm -r typecheck` 全绿(shared/api/web),单测 480/481(1 个 agent-traces.service.spec.ts 失败是 parallel agent 的 `orderBy` mock 漏写,跟本任务无关)
 
 ## 已锁定决策(Q1–Q17)
 
@@ -322,3 +346,4 @@ pnpm --filter @platform/api seed
 - **§6.2 鉴权 MVP 阶段只发了 15min access token**;**refresh token + 旋转/吊销 + HttpOnly Cookie** 仍留 Phase 2;前端用 `localStorage` 存 accessToken,没接 refresh
 - **所有受保护端点**(除 `/api/health` / `/api/auth/login`)都要带 `Authorization: Bearer <jwt>`;Phase 2 接 HttpOnly Cookie 替换 localStorage
 - **`JwtAuthGuard` + `RolesGuard` 强制要求模块在 `imports` 里带 `AuthModule`**(`AuthModule` exports `PassportModule`);后续要扩到多 controller 时记得加这条 import
+- ~~§1.2/2.7 Agent Trace 检索未实装~~:✅ Phase 3 #K 已落地 — `agent_traces` 表 + 持久化 + `/api/scan-runs/:id/trace` 端点 + `/projects/:id/scans/:runId/trace` 页面 + summary
