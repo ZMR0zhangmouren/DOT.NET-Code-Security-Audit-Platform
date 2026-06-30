@@ -18,10 +18,10 @@
 
 ## 🏗️ What is this
 
-The `.NET Code Security Audit Platform` is a **self-hosted, white-box code audit web platform**. A user uploads a `.NET` source archive through the browser; the backend loads 38 audit Skills from the local `./dotnet-security-audit-skill/` submodule (6 infrastructure + 9 framework + 31 vuln + 9 shared specs) through the OpenAI Agents SDK and produces a triage-ready, assignable, traceable Vulnerability Library plus a Markdown report, following a "divide-then-merge" two-phase strategy.
+The `.NET Code Security Audit Platform` is a **self-hosted, white-box code audit web platform**. A user uploads a `.NET` source archive through the browser; the backend loads 38 audit Skills from the local `./dotnet-security-audit-skill/` (upstream open-source .NET audit Skill collection, cloned from [`ZMR0zhangmouren/dotnet-security-audit-skill`](https://github.com/ZMR0zhangmouren/dotnet-security-audit-skill)) (6 infrastructure + 9 framework + 31 vuln + 9 shared specs) through the OpenAI Agents SDK and produces a triage-ready, assignable, traceable Vulnerability Library plus a Markdown report, following a "divide-then-merge" two-phase strategy.
 
 - **🎯 Goal** —— make the submodule's existing audit orchestrator *collaborative, persistent, and auditable* — not re-implement orchestration (Q17 hard constraint)
-- **🚫 Non-goals** —— never replace `./dotnet-security-audit-skill/`; never let the Agent modify source; never decouple from `@openai/agents` (Q14 lock)
+- **🚫 Non-goals** —— never replace or modify `./dotnet-security-audit-skill/` (upstream open-source project maintained at [`ZMR0zhangmouren/dotnet-security-audit-skill`](https://github.com/ZMR0zhangmouren/dotnet-security-audit-skill); platform pins it via `SkillBundleVersion`); never let the Agent modify source; never decouple from `@openai/agents` (Q14 lock)
 
 ## ✨ Core Features
 
@@ -103,7 +103,7 @@ Open <http://127.0.0.1:5180> in your browser → log in with `admin` / `admin123
 │       └── src/pages/                #   12 pages (Login / Projects / Report / Trace / ...)
 ├── packages/
 │   └── shared/                       # @platform/shared —— cross-package enums and types
-├── dotnet-security-audit-skill/      # ★ Independent git submodule (source of truth, read-only by platform)
+├── dotnet-security-audit-skill/      # ★ Upstream open-source .NET audit Skill collection (cloned from github.com/ZMR0zhangmouren/); platform pins via SkillBundleVersion, never modifies
 │   ├── agents/dotnet代码审计.agent.md   #   Main Agent prompt
 │   ├── skills/dotnet-audit-pipeline/   #   ★ Overall orchestration methodology
 │   ├── skills/{route-mapper,auth-audit,vuln-scanner,...}/
@@ -149,8 +149,8 @@ Open <http://127.0.0.1:5180> in your browser → log in with `admin` / `admin123
 │                                   │ load instructions                      │
 │                                   ▼                                        │
 │  ┌─────────────────────────────────────────────────────────────────────┐  │
-│  │  ./dotnet-security-audit-skill/  (independent git submodule,         │  │
-│  │   source of truth)                                                   │  │
+│  │  ./dotnet-security-audit-skill/  (upstream open-source Skill)        │  │
+│  │   GitHub: ZMR0zhangmouren/dotnet-security-audit-skill                │  │
 │  │   agents/dotnet代码审计.agent.md   ←── Main Agent                    │  │
 │  │   skills/dotnet-audit-pipeline/SKILL.md ←── Overall methodology     │  │
 │  │   skills/{route-mapper,framework×9,vuln×31,exploit-chain}/SKILL.md   │  │

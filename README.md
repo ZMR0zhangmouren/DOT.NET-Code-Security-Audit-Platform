@@ -18,10 +18,10 @@
 
 ## 🏗️ 项目简介
 
-`.NET` 代码安全审计平台是一套**自托管的白盒代码审计 Web 平台**:用户在浏览器里上传 `.NET` 源码 zip,后端用 OpenAI Agents SDK 加载本地 `./dotnet-security-audit-skill/` 子仓库的 38 个审计 Skill(基础设施 6 + 框架专项 9 + 漏洞专项 31 + shared 规范 9),按"先分后合"两阶段策略产出可读、可分派、可追踪的漏洞库与报告。
+`.NET` 代码安全审计平台是一套**自托管的白盒代码审计 Web 平台**:用户在浏览器里上传 `.NET` 源码 zip,后端用 OpenAI Agents SDK 加载本地 `./dotnet-security-audit-skill/`(上游开源 .NET 审计 Skill 集合,clone 自 [`ZMR0zhangmouren/dotnet-security-audit-skill`](https://github.com/ZMR0zhangmouren/dotnet-security-audit-skill))的 38 个审计 Skill(基础设施 6 + 框架专项 9 + 漏洞专项 31 + shared 规范 9),按"先分后合"两阶段策略产出可读、可分派、可追踪的漏洞库与报告。
 
 - **🎯 核心目标** —— 把子仓库已有的"审计编排者"**可被 Web 多人协作、被持久化、被审计**,而不是另起一套编排(Q17 硬约束)
-- **🚫 非目标** —— 不替换 `./dotnet-security-audit-skill/` 子仓库本身;不让 Agent 自主修改源码;不脱离 `@openai/agents`(Q14 锁定)
+- **🚫 非目标** —— 不替换/不修改 `./dotnet-security-audit-skill/`(上游开源项目,由 [`ZMR0zhangmouren/dotnet-security-audit-skill`](https://github.com/ZMR0zhangmouren/dotnet-security-audit-skill) 维护,平台通过 `SkillBundleVersion` 锁定其 commit);不让 Agent 自主修改源码;不脱离 `@openai/agents`(Q14 锁定)
 
 ## ✨ 核心特性
 
@@ -103,7 +103,7 @@ pnpm dev
 │       └── src/pages/                #   12 页面(Login/Projects/Report/Trace/...)
 ├── packages/
 │   └── shared/                       # @platform/shared —— 跨包枚举与类型
-├── dotnet-security-audit-skill/      # ★ 独立 git 子仓库(真理之源,平台只读)
+├── dotnet-security-audit-skill/      # ★ 上游开源 .NET 审计 Skill 集合(clone 自 github.com/ZMR0zhangmouren/),平台通过 SkillBundleVersion 锁定 commit,不直接修改
 │   ├── agents/dotnet代码审计.agent.md   #   主 Agent 提示词
 │   ├── skills/dotnet-audit-pipeline/   #   ★ 总编排方法论
 │   ├── skills/{route-mapper,auth-audit,vuln-scanner,...}/
@@ -149,7 +149,7 @@ pnpm dev
 │                                   │ load instructions                      │
 │                                   ▼                                        │
 │  ┌─────────────────────────────────────────────────────────────────────┐  │
-│  │  ./dotnet-security-audit-skill/  (独立 git 子仓库,真理之源)           │  │
+│  │  ./dotnet-security-audit-skill/  (上游开源 .NET Skill 集合)         │  │
 │  │   agents/dotnet代码审计.agent.md   ←── 主 Agent                      │  │
 │  │   skills/dotnet-audit-pipeline/SKILL.md ←── 总编排方法论             │  │
 │  │   skills/{route-mapper,framework×9,vuln×31,exploit-chain}/SKILL.md   │  │
