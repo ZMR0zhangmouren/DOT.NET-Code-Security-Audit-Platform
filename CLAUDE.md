@@ -335,6 +335,7 @@ pnpm --filter @platform/api seed
 - ~~better-sqlite3 native binding 缺失(导致 API 启动报 'Could not locate bindings file')~~:`fa71693`(`pnpm-workspace.yaml` 加 `onlyBuiltDependencies`)允许 install 期 build;Windows 中文路径下 node-gyp mojibake 仍编译失败,所以手动下载 Node 24 ABI v137 prebuilt → `node_modules/.pnpm/better-sqlite3@12.11.1/node_modules/better-sqlite3/build/Release/better_sqlite3.node`(1.9MB,untracked / 不进 commit,Phase 5 写 `scripts/install-native-deps.sh`)
 - ~~3 个 NestJS DI 'Function not found' bug(API 启动报 'argument Function')~~:`7bf49eb` 修了 `roles.guard.ts`(`import type Reflector` → runtime)+ `projects.controller.ts`(`import type ProjectsService` → runtime)+ `auth.module.ts`(清残留 unused imports)
 - ~~scan-queue / scan-processor 同样 `import type` bug(没 DI 注册但 BullMQ 内部 metadata 需要)~~:`4dd7523`(Phase 5 repo-wide 扫的第二批)`fac71693`(pnpm workspace)→`4dd7523` 已是 final commit
+- ~~scan-queue / scan-processor 上 `import { type Job, type Queue } from 'bullmq'` 还留着 `// eslint-disable-next-line @typescript-eslint/consistent-type-imports` 冗余注释(原始 commit `4dd7523` 误解为 runtime ref)~~:`bc8e034` 删 2 处(ESLint 自报 Unused eslint-disable directive —— `import { type X }` 形式规则本身就不报;`Queue<>`/`Job<>` 只用在泛型类型位置,`@InjectQueue` 注入的是 Redis connection 对象,运行时不需要 class metadata)
 
 ### 未修(新 / 遗留)
 
