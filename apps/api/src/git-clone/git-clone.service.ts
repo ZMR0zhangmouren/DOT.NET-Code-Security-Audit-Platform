@@ -32,6 +32,7 @@ import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common'
 import { and, eq, like, or } from 'drizzle-orm';
 
 import { decryptSecret, getMasterKey } from '../common/crypto.util.js';
+import { LOC_EXTENSIONS } from '../constants.js';
 import { DATABASE, type Db } from '../db/database.module.js';
 import { gitCredentials } from '../db/schema.js';
 
@@ -434,8 +435,6 @@ function extractRepoName(stderr: string): string {
   const m = stderr.match(/'(.+?)'/);
   return m?.[1] ?? 'unknown';
 }
-
-const LOC_EXTENSIONS = new Set(['.cs', '.cshtml', '.csproj', '.sln', '.vb', '.aspx', '.ascx']);
 
 interface WalkResult {
   fileCount: number;

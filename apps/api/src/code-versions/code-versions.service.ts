@@ -7,6 +7,7 @@ import { Inject, Injectable, BadRequestException, NotFoundException } from '@nes
 import { and, desc, eq } from 'drizzle-orm';
 import type { Entry as YauzlEntry } from 'yauzl';
 
+import { LOC_EXTENSIONS } from '../constants.js';
 import { DATABASE, type Db } from '../db/database.module.js';
 import { codeVersions, projects } from '../db/schema.js';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -16,8 +17,6 @@ import { StorageService } from '../storage/storage.service.js'; // runtime ref (
 
 /** Q4:单 zip 500MB 上限 */
 export const ZIP_MAX_BYTES = 500 * 1024 * 1024;
-
-const LOC_EXTENSIONS = new Set(['.cs', '.cshtml', '.csproj', '.sln', '.vb', '.aspx', '.ascx']);
 
 export interface CodeVersionPublic {
   id: string;

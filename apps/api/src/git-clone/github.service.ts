@@ -30,6 +30,7 @@ import { createGunzip } from 'node:zlib';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { decryptSecret, getMasterKey } from '../common/crypto.util.js';
+import { LOC_EXTENSIONS } from '../constants.js';
 import { DATABASE, type Db } from '../db/database.module.js';
 import { gitCredentials } from '../db/schema.js';
 
@@ -533,8 +534,6 @@ export function stripTopLevel(name: string, top: string | null): string {
 /* -------------------------------------------------------------------------- */
 /*                          统计 + checksum(与 git-clone.service 共用约定)     */
 /* -------------------------------------------------------------------------- */
-
-const LOC_EXTENSIONS = new Set(['.cs', '.cshtml', '.csproj', '.sln', '.vb', '.aspx', '.ascx']);
 
 export function walkAndCount(dir: string): {
   fileCount: number;
