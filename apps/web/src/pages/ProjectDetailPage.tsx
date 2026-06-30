@@ -25,7 +25,7 @@ interface Project {
   updatedAt: number;
 }
 
-type Tab = 'overview' | 'scans' | 'members';
+type Tab = 'overview' | 'scans' | 'versions' | 'members';
 
 type ProjectMemberRole = 'lead' | 'contributor' | 'viewer';
 
@@ -75,6 +75,8 @@ export default function ProjectDetailPage(): React.ReactElement {
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
+  // Members tab 搜索/过滤(§4.2.8)
+  const [membersSearch, setMembersSearch] = useState('');
 
   async function refresh(): Promise<void> {
     if (!id) return;
@@ -130,7 +132,7 @@ export default function ProjectDetailPage(): React.ReactElement {
   }, [id]);
 
   useEffect(() => {
-    if (tab === 'scans' || tab === 'overview') {
+    if (tab === 'scans' || tab === 'overview' || tab === 'versions') {
       void refreshScans();
     } else if (tab === 'members') {
       void refreshMembers();
@@ -349,6 +351,21 @@ export default function ProjectDetailPage(): React.ReactElement {
                 §5.5
               </span>
             </Link>
+            <button
+              type="button"
+              onClick={() => setTab('versions')}
+              className={
+                tab === 'versions'
+                  ? 'inline-flex items-center gap-1 rounded-t border-b-2 border-primary bg-card px-3 py-1 text-sm font-medium'
+                  : 'inline-flex items-center gap-1 rounded px-3 py-1 text-sm text-muted-foreground hover:bg-muted'
+              }
+              data-testid="tab-versions"
+            >
+              Versions
+              <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] text-primary">
+                §5.2
+              </span>
+            </button>
             <button
               type="button"
               onClick={() => setTab('members')}
@@ -643,6 +660,89 @@ export default function ProjectDetailPage(): React.ReactElement {
             </section>
           )}
 
+          {tab === 'versions' && (
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-semibold">Code Versions</h2>
+                <span className="text-xs text-muted-foreground">
+                  {versions.length} version{versions.length !== 1 ? 's' : ''}
+                </span>
+                <div className="ml-auto flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      void refreshScans();
+                    }}
+                    data-testid="versions-refresh"
+                  >
+                    Refresh
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setTab('scans');
+                      setShowUpload(true);
+                    }}
+                    data-testid="versions-upload-jump"
+                  >
+                    + Upload Version
+                  </Button>
+                </div>
+              </div>
+
+              {scansLoading ? (
+                <p className="text-sm text-muted-foreground">Loading versions...</p>
+              ) : versions.length === 0 ? (
+                <div
+                  className="rounded-lg border bg-card p-6 text-sm text-muted-foreground"
+                  data-testid="versions-empty"
+                >
+                  No code versions yet. 点 "+ Upload Version" 跳到 Scans tab 上传 zip。
+                </div>
+              ) : (
+                <div
+                  className="overflow-x-auto rounded-lg border bg-card text-sm"
+                  data-testid="versions-table-wrap"
+                >
+                  <table className="w-full" data-testid="versions-table">
+                    <thead>
+                      <tr className="border-b bg-muted text-left">
+                        <th className="p-2">Label</th>
+                        <th className="p-2">Source</th>
+                        <th className="p-2">Files</th>
+                        <th className="p-2">LOC</th>
+                        <th className="p-2">Size</th>
+                        <th className="p-2">Checksum (SHA-256)</th>
+                        <th className="p-2">Uploaded</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {versions.map((v) => (
+                        <tr
+                          key={v.id}
+                          className="border-b last:border-0"
+                          data-testid="versions-row"
+                        >
+                          <td className="p-2 font-mono font-semibold">
+                            {v.versionLabel ?? '(no label)'}
+                          </td>
+                          <td className="p-2">{v.sourceType}</td>
+                          <td className="p-2">{v.fileCount}</td>
+                          <td className="p-2">{v.locCount}</td>
+                          <td className="p-2">
+                            {v.sizeBytes ? `${Math.round(v.sizeBytes / 1024)} KB` : '-'}
+                          </td>
+                          <td className="p-2 font-mono">{v.checksum.slice(0, 12)}…</td>
+                          <td className="p-2">{new Date(v.uploadedAt).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+
           {tab === 'members' && (
             <ProjectMembersSection
               projectId={id!}
@@ -655,6 +755,8 @@ export default function ProjectDetailPage(): React.ReactElement {
                 setShowAddMember(false);
                 void refreshMembers();
               }}
+              search={membersSearch}
+              onSearchChange={setMembersSearch}
               onRoleChange={async (userId, newRole) => {
                 try {
                   await api.patch(`/projects/${id}/members/${userId}`, {
