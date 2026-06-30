@@ -10,6 +10,8 @@ interface FakeAuthService {
   login: ReturnType<typeof vi.fn>;
   getMe: ReturnType<typeof vi.fn>;
   changePassword: ReturnType<typeof vi.fn>;
+  refresh: ReturnType<typeof vi.fn>;
+  logout: ReturnType<typeof vi.fn>;
 }
 
 function makeAuth(): FakeAuthService {
@@ -17,6 +19,15 @@ function makeAuth(): FakeAuthService {
     login: vi.fn(),
     getMe: vi.fn(),
     changePassword: vi.fn(),
+    refresh: vi.fn(),
+    logout: vi.fn(),
+  };
+}
+
+function fakeRes() {
+  return {
+    cookie: vi.fn(),
+    clearCookie: vi.fn(),
   };
 }
 
@@ -27,13 +38,55 @@ describe('AuthController (§6.2)', () => {
     auth = makeAuth();
   });
 
-  it('login → 委托给 auth.login(usernameOrEmail, password)', async () => {
-    auth.login.mockResolvedValue({ accessToken: 'jwt.x', user: { id: 'u1' } });
+  it('login → 委托给 auth.login,设 refresh cookie,返回 accessToken+user', async () => {
+    auth.login.mockResolvedValue({
+      accessToken: 'jwt.x',
+      refreshToken: 'rt.hex',
+      user: { id: 'u1' },
+    });
     const mod = await import('./auth.controller.js');
     const c = new mod.AuthController(auth as never);
-    const r = await c.login({ usernameOrEmail: 'alice', password: 'pw' } as never);
+    const res = fakeRes();
+    const r = await c.login({ usernameOrEmail: 'alice', password: 'pw' } as never, res as never);
     expect(auth.login).toHaveBeenCalledWith('alice', 'pw');
+    expect(res.cookie).toHaveBeenCalledWith('refresh_token', 'rt.hex', expect.any(Object));
     expect(r).toEqual({ accessToken: 'jwt.x', user: { id: 'u1' } });
+  });
+
+  it('refresh → 无 cookie → UnauthorizedException', async () => {
+    const mod = await import('./auth.controller.js');
+    const c = new mod.AuthController(auth as never);
+    const req = { cookies: {} };
+    const res = fakeRes();
+    await expect(c.refresh(req as never, res as never)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('refresh → 有 cookie → 调 auth.refresh,设新 cookie', async () => {
+    auth.refresh.mockResolvedValue({
+      accessToken: 'jwt.new',
+      refreshToken: 'rt.new',
+      user: { id: 'u1' },
+    });
+    const mod = await import('./auth.controller.js');
+    const c = new mod.AuthController(auth as never);
+    const req = { cookies: { refresh_token: 'rt.old' } };
+    const res = fakeRes();
+    const r = await c.refresh(req as never, res as never);
+    expect(auth.refresh).toHaveBeenCalledWith('rt.old');
+    expect(res.cookie).toHaveBeenCalledWith('refresh_token', 'rt.new', expect.any(Object));
+    expect(r).toEqual({ accessToken: 'jwt.new', user: { id: 'u1' } });
+  });
+
+  it('logout → 调 auth.logout + clearCookie', async () => {
+    const mod = await import('./auth.controller.js');
+    const c = new mod.AuthController(auth as never);
+    const res = fakeRes();
+    const r = await c.logout({ sub: 'u1' } as never, res as never);
+    expect(auth.logout).toHaveBeenCalledWith('u1');
+    expect(res.clearCookie).toHaveBeenCalled();
+    expect(r).toEqual({ ok: true });
   });
 
   it('me → user=null → UnauthorizedException', async () => {

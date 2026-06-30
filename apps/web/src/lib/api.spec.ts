@@ -2,32 +2,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError, getCurrentUser, getToken, logout, setCurrentUser, setToken, api } from './api';
 
-const TOKEN_KEY = 'access_token';
-const USER_KEY = 'user';
-
 describe('lib/api.ts', () => {
   beforeEach(() => {
-    localStorage.clear();
+    setToken(null);
+    setCurrentUser(null);
     vi.restoreAllMocks();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    localStorage.clear();
   });
 
-  describe('token helpers', () => {
+  describe('token helpers (in-memory, 非 localStorage)', () => {
     it('setToken → getToken 读出来', () => {
       setToken('jwt.x');
       expect(getToken()).toBe('jwt.x');
-      expect(localStorage.getItem(TOKEN_KEY)).toBe('jwt.x');
     });
 
     it('setToken(null) → 删除 token', () => {
       setToken('jwt.x');
       setToken(null);
       expect(getToken()).toBeNull();
-      expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
     });
 
     it('logout 同时清 token + user', () => {
@@ -45,8 +40,8 @@ describe('lib/api.ts', () => {
     });
   });
 
-  describe('user helpers', () => {
-    it('setCurrentUser → JSON.parse 出来', () => {
+  describe('user helpers (in-memory)', () => {
+    it('setCurrentUser → getCurrentUser 读出来', () => {
       setCurrentUser({
         id: 'u1',
         username: 'alice',
@@ -70,7 +65,6 @@ describe('lib/api.ts', () => {
       });
       setCurrentUser(null);
       expect(getCurrentUser()).toBeNull();
-      expect(localStorage.getItem(USER_KEY)).toBeNull();
     });
 
     it('getCurrentUser 空 → null', () => {
@@ -89,7 +83,7 @@ describe('lib/api.ts', () => {
       const init = fetchSpy.mock.calls[0]![1]!;
       const headers = init.headers as Headers;
       expect(headers.get('authorization')).toBe('Bearer jwt.token');
-      expect(headers.get('content-type')).toBeNull(); // GET 没 body
+      expect(headers.get('content-type')).toBeNull();
     });
 
     it('POST JSON body → 自动 set content-type', async () => {
@@ -103,8 +97,7 @@ describe('lib/api.ts', () => {
       expect(init.body).toBe(JSON.stringify({ x: 1 }));
     });
 
-    it('POST FormData body → 不覆盖浏览器 multipart header(2026-06-29 fix)', async () => {
-      // request() 对 FormData 不设 content-type,让浏览器自动设 multipart/form-data + boundary
+    it('POST FormData body → 不覆盖浏览器 multipart header', async () => {
       const fetchSpy = vi
         .spyOn(globalThis, 'fetch')
         .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
@@ -138,7 +131,7 @@ describe('lib/api.ts', () => {
       expect(init.method).toBe('DELETE');
     });
 
-    it('401 → 自动 logout + 抛 ApiError(401)', async () => {
+    it('401 → 尝试静默 refresh(失败)→ logout + ApiError(401)', async () => {
       setToken('jwt.bad');
       setCurrentUser({
         id: 'u',
@@ -147,9 +140,10 @@ describe('lib/api.ts', () => {
         displayName: null,
         role: 'admin',
       });
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        new Response('unauthorized', { status: 401 }),
-      );
+      // 第一次请求 → 401，然后静默 refresh → 也 401
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(new Response('unauthorized', { status: 401 })) // original request
+        .mockResolvedValueOnce(new Response('unauthorized', { status: 401 })); // silent refresh
       await expect(api.get('/foo')).rejects.toBeInstanceOf(ApiError);
       expect(getToken()).toBeNull();
       expect(getCurrentUser()).toBeNull();

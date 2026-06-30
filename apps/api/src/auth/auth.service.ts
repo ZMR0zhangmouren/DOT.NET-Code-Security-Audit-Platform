@@ -1,3 +1,5 @@
+import { createHash, randomBytes } from 'node:crypto';
+
 import {
   BadRequestException,
   Inject,
@@ -8,10 +10,10 @@ import {
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { JwtService } from '@nestjs/jwt'; // 运行时需保留(NestJS DI 反射元数据)
 import * as argon2 from 'argon2';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 
 import { DATABASE, type Db } from '../db/database.module.js';
-import { users } from '../db/schema.js';
+import { refreshTokens, users } from '../db/schema.js';
 
 /**
  * §6.2 密码强度规则(MVP):
@@ -46,13 +48,26 @@ export interface AuthedUser {
   role: 'admin' | 'auditor' | 'developer' | 'viewer';
 }
 
+export interface LoginResult {
+  accessToken: string;
+  refreshToken: string;
+  user: AuthedUser;
+}
+
+const REFRESH_TOKEN_BYTES = 48;
+const REFRESH_TOKEN_MS = 7 * 24 * 3600 * 1000; // 7 days
+const ACCESS_TOKEN_MS = 15 * 60 * 1000; // 15 min
+
+function sha256hex(s: string): string {
+  return createHash('sha256').update(s).digest('hex');
+}
+
 /**
  * §4.2.7 User + §6.2 认证:
  * - 密码哈希:argon2id(cost ≥ 12)
- * - 会话:JWT(Access 15min + Refresh 7d)
- * - 传输:HttpOnly + SameSite=Strict Cookie(Phase 1 简化为返回 JWT 让前端自行处理)
- *
- * §6.2 还要求 refresh token 旋转与吊销;MVP 阶段先做最小可用版。
+ * - access token:JWT 15min,返回 body(前端内存持有)
+ * - refresh token:随机字符串 7d,HttpOnly cookie,旋转/吊销
+ * - 客户端收到 401 时静默调 /api/auth/refresh 换新 access token
  */
 @Injectable()
 export class AuthService {
@@ -71,13 +86,39 @@ export class AuthService {
     });
   }
 
-  async login(
-    usernameOrEmail: string,
-    password: string,
-  ): Promise<{
-    accessToken: string;
-    user: AuthedUser;
-  }> {
+  /** 签发 access token(JWT,短期) */
+  private async issueAccessToken(user: {
+    id: string;
+    username: string;
+    role: string;
+  }): Promise<string> {
+    const payload: JwtPayload = {
+      sub: user.id,
+      username: user.username,
+      role: user.role as JwtPayload['role'],
+    };
+    return this.jwt.signAsync(payload, { expiresIn: `${ACCESS_TOKEN_MS / 1000}s` });
+  }
+
+  /** 生成 refresh token(随机 hex),SHA-256 哈希后落 DB,返回原始 token */
+  private async issueRefreshToken(userId: string): Promise<string> {
+    const raw = randomBytes(REFRESH_TOKEN_BYTES).toString('hex');
+    const hash = sha256hex(raw);
+    const now = Date.now();
+    this.db
+      .insert(refreshTokens)
+      .values({
+        id: `rt-${now.toString(36)}-${randomBytes(4).toString('hex')}`,
+        userId,
+        tokenHash: hash,
+        expiresAt: now + REFRESH_TOKEN_MS,
+        createdAt: now,
+      })
+      .run();
+    return raw;
+  }
+
+  async login(usernameOrEmail: string, password: string): Promise<LoginResult> {
     const rows = this.db.select().from(users).where(eq(users.username, usernameOrEmail)).all();
     const found = rows[0] ?? null;
     if (!found || !found.isActive) {
@@ -90,14 +131,11 @@ export class AuthService {
     // 更新 last_login_at
     this.db.update(users).set({ lastLoginAt: Date.now() }).where(eq(users.id, found.id)).run();
 
-    const payload: JwtPayload = {
-      sub: found.id,
-      username: found.username,
-      role: found.role,
-    };
-    const accessToken = await this.jwt.signAsync(payload, { expiresIn: '8h' });
+    const accessToken = await this.issueAccessToken(found);
+    const refreshToken = await this.issueRefreshToken(found.id);
     return {
       accessToken,
+      refreshToken,
       user: {
         id: found.id,
         username: found.username,
@@ -106,6 +144,78 @@ export class AuthService {
         role: found.role,
       },
     };
+  }
+
+  /**
+   * §6.2 Refresh:用 refresh token 换新的 access token + 新 refresh token(旋转)
+   *
+   * 流程:
+   * 1. SHA-256 哈希 raw token
+   * 2. 查 DB 找未过期、未吊销的匹配行
+   * 3. 吊销旧 token(写 revokedAt)
+   * 4. 签发新 access + refresh token
+   */
+  async refresh(
+    rawRefreshToken: string,
+  ): Promise<{ accessToken: string; refreshToken: string; user: AuthedUser }> {
+    const hash = sha256hex(rawRefreshToken);
+    const now = Date.now();
+    const row = this.db
+      .select()
+      .from(refreshTokens)
+      .where(and(eq(refreshTokens.tokenHash, hash), isNull(refreshTokens.revokedAt)))
+      .get() as
+      | { id: string; userId: string; tokenHash: string; expiresAt: number; revokedAt: null }
+      | undefined;
+
+    if (!row || row.expiresAt < now) {
+      throw new UnauthorizedException('invalid or expired refresh token');
+    }
+
+    // 吊销旧 token
+    this.db.update(refreshTokens).set({ revokedAt: now }).where(eq(refreshTokens.id, row.id)).run();
+
+    // 查 user
+    const user = this.db.select().from(users).where(eq(users.id, row.userId)).get() as
+      | {
+          id: string;
+          username: string;
+          email: string;
+          displayName: string | null;
+          role: string;
+          isActive: boolean | null;
+        }
+      | undefined;
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('user inactive or deleted');
+    }
+
+    const accessToken = await this.issueAccessToken(user);
+    const refreshToken = await this.issueRefreshToken(user.id);
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        displayName: user.displayName,
+        role: user.role as AuthedUser['role'],
+      },
+    };
+  }
+
+  /**
+   * §6.2 Logout:吊销所有活跃 refresh token(可选全量 or 单条)
+   * 这里做全量吊销——用户登出时清掉该用户所有未吊销 token
+   */
+  logout(userId: string): void {
+    const now = Date.now();
+    this.db
+      .update(refreshTokens)
+      .set({ revokedAt: now })
+      .where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)))
+      .run();
   }
 
   async me(userId: string): Promise<AuthedUser | null> {

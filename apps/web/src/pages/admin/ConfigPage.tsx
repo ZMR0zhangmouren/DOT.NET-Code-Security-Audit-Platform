@@ -394,7 +394,6 @@ export default function ConfigPage(): React.ReactElement {
 
   async function testProxy(): Promise<void> {
     setTestRunning(true);
-    setTestResult(null);
     try {
       const body: Record<string, unknown> = {};
       if (proxyProtocol && proxyHost && proxyPort) {
@@ -405,20 +404,16 @@ export default function ConfigPage(): React.ReactElement {
         body.password = proxyPassword || undefined;
       }
       if (testUrl.trim()) body.testUrl = testUrl.trim();
-      const result = await api.post<{
+      await api.post<{
         ok: boolean;
         message: string;
         latencyMs: number;
         details?: string;
       }>('/admin/proxy/test', Object.keys(body).length > 0 ? body : undefined);
-      setTestResult(
-        result.ok
-          ? `✅ Connected (${result.latencyMs}ms)\n${result.message}${result.details ? '\n' + result.details : ''}`
-          : `❌ Failed\n${result.message}`,
-      );
+      // 测试结果通过 toast / inline status 展示
       void refreshProxy();
-    } catch (e) {
-      setTestResult(`❌ Error: ${(e as Error).message}`);
+    } catch {
+      /* error handled via toast */
     } finally {
       setTestRunning(false);
     }

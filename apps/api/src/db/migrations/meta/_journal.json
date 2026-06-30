@@ -50,6 +50,13 @@
       "when": 1782704694287,
       "tag": "0006_free_dagger",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1782797996571,
+      "tag": "0007_thankful_chronomancer",
+      "breakpoints": true
     }
   ]
 }

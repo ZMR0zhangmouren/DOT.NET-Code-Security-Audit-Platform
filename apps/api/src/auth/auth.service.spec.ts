@@ -91,10 +91,20 @@ vi.mock('../db/schema.js', () => ({
     id: { _col: 'id' },
     username: { _col: 'username' },
   },
+  refreshTokens: {
+    id: { _col: 'id' },
+    userId: { _col: 'user_id' },
+    tokenHash: { _col: 'token_hash' },
+    expiresAt: { _col: 'expires_at' },
+    createdAt: { _col: 'created_at' },
+    revokedAt: { _col: 'revoked_at' },
+  },
 }));
 
 vi.mock('drizzle-orm', () => ({
   eq: (col: { _col: string }, val: unknown) => ({ _col: col._col, _val: val }),
+  and: (...conds: unknown[]) => ({ _op: 'and', _conds: conds }),
+  isNull: (col: { _col: string }) => ({ _col: col._col, _op: 'isNull' }),
 }));
 
 interface DbFake {
@@ -177,7 +187,7 @@ describe('AuthService.login (§6.2)', () => {
     // jwt payload 包含 sub / username / role(Q15/Q17 锁定的 4 角色枚举)
     const signCall = jwt.signAsync.mock.calls[0]!;
     expect(signCall[0]).toEqual({ sub: 'usr-1', username: 'alice', role: 'admin' });
-    expect(signCall[1]).toEqual({ expiresIn: '8h' });
+    expect(signCall[1]).toEqual({ expiresIn: '900s' }); // 15min access token
   });
 
   it('happy path: 更新 lastLoginAt(走 update chain)', async () => {

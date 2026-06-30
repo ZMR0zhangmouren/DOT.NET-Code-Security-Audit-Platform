@@ -6,15 +6,21 @@ import {
   HttpStatus,
   NotFoundException,
   Post,
+  Req,
+  Res,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import type { Request, Response } from 'express';
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AuthService, type AuthedUser } from './auth.service.js'; // AuthService 需保留运行时引用(NestJS DI)
 import { CurrentUser } from './current-user.decorator.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import type { AuthenticatedUser } from './jwt.strategy.js';
+
+const REFRESH_COOKIE = 'refresh_token';
+const REFRESH_MAX_AGE_MS = 7 * 24 * 3600 * 1000;
 
 interface LoginDto {
   usernameOrEmail: string;
@@ -30,15 +36,75 @@ interface ChangePasswordDto {
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  private setRefreshCookie(res: Response, token: string): void {
+    res.cookie(REFRESH_COOKIE, token, {
+      httpOnly: true,
+      secure: process.env['NODE_ENV'] === 'production',
+      sameSite: 'lax',
+      path: '/api/auth',
+      maxAge: REFRESH_MAX_AGE_MS,
+    });
+  }
+
+  private clearRefreshCookie(res: Response): void {
+    res.clearCookie(REFRESH_COOKIE, {
+      httpOnly: true,
+      secure: process.env['NODE_ENV'] === 'production',
+      sameSite: 'lax',
+      path: '/api/auth',
+    });
+  }
+
   /**
    * §6.2 登录(公开端点)
-   * 成功:200 { accessToken, user }
+   * 成功:200 { accessToken, user } + Set-Cookie: refresh_token (HttpOnly)
    * 失败:401 invalid credentials
    */
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() body: LoginDto): Promise<{ accessToken: string; user: AuthedUser }> {
-    return this.auth.login(body.usernameOrEmail, body.password);
+  async login(
+    @Body() body: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ accessToken: string; user: AuthedUser }> {
+    const result = await this.auth.login(body.usernameOrEmail, body.password);
+    this.setRefreshCookie(res, result.refreshToken);
+    return { accessToken: result.accessToken, user: result.user };
+  }
+
+  /**
+   * §6.2 Refresh:用 refresh_token cookie 换新 access token(旋转 refresh token)
+   * 成功:200 { accessToken, user } + Set-Cookie: new refresh_token
+   * 失败:401
+   */
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ accessToken: string; user: AuthedUser }> {
+    const raw = req.cookies?.[REFRESH_COOKIE];
+    if (!raw || typeof raw !== 'string') {
+      throw new UnauthorizedException('missing refresh token');
+    }
+    const result = await this.auth.refresh(raw);
+    this.setRefreshCookie(res, result.refreshToken);
+    return { accessToken: result.accessToken, user: result.user };
+  }
+
+  /**
+   * §6.2 Logout:吊销所有 refresh token + 清 cookie
+   * 成功:200 { ok: true }
+   */
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async logout(
+    @CurrentUser() user: AuthenticatedUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ ok: true }> {
+    this.auth.logout(user.sub);
+    this.clearRefreshCookie(res);
+    return { ok: true };
   }
 
   /**

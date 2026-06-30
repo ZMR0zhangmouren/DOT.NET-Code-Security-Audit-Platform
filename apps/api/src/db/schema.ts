@@ -258,6 +258,27 @@ export const vulnLibraryEntries = sqliteTable(
 );
 
 // =====================================================================
+// §6.2 Refresh Token —— HttpOnly cookie + 旋转/吊销
+// =====================================================================
+export const refreshTokens = sqliteTable(
+  'refresh_tokens',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    tokenHash: text('token_hash').notNull(), // SHA-256 of the raw token (never store plaintext)
+    expiresAt: integer('expires_at').notNull(),
+    createdAt: integer('created_at').notNull(),
+    revokedAt: integer('revoked_at'), // null = active, non-null = revoked
+  },
+  (t) => ({
+    userIdx: index('refresh_tokens_user_idx').on(t.userId),
+    hashIdx: index('refresh_tokens_hash_idx').on(t.tokenHash),
+  }),
+);
+
+// =====================================================================
 // §4.2.7 User
 // =====================================================================
 export const users = sqliteTable(
