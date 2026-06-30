@@ -60,6 +60,12 @@ pnpm dev
 
 > Windows 用户也可直接双击根目录的 `start.bat` / `stop.bat` / `status.bat`。
 
+## 📸 关键页面预览
+
+| 扫描详情页(实时日志 / 阶段产物 / Agent Trace 入口) | 漏洞报告页(Markdown 渲染 + 章节导航 + 漏洞清单) |
+|---|---|
+| ![scan-detail](./docs/screenshots/scan-detail.png) | ![scan-report](./docs/screenshots/scan-report.png) |
+
 ## 🧱 技术栈
 
 | 角色 | 选型 |

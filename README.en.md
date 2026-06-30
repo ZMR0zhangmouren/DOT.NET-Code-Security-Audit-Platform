@@ -60,6 +60,12 @@ Open <http://127.0.0.1:5180> in your browser → log in with `admin` / `admin123
 
 > On Windows, you can also double-click `start.bat` / `stop.bat` / `status.bat` in the repo root.
 
+## 📸 Key Screenshots
+
+| Scan Detail (live logs / stage artifacts / Agent Trace entry) | Scan Report (Markdown rendering + section navigator + vuln list) |
+|---|---|
+| ![scan-detail](./docs/screenshots/scan-detail.png) | ![scan-report](./docs/screenshots/scan-report.png) |
+
 ## 🧱 Tech Stack
 
 | Layer | Choice |
