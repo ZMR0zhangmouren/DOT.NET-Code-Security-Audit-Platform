@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { json, urlencoded } from 'express';
+import type { Express } from 'express';
 
 import { createQueueBoardAuthMiddleware } from './admin/queue-board/queue-board-auth.middleware.js';
 import { QueueBoardService } from './admin/queue-board/queue-board.service.js';
@@ -16,7 +17,7 @@ async function bootstrap(): Promise<void> {
   // Body-parser 上限:json/urlencoded 上限 50MB,raw 上限 100MB
   // 满足 §5.2 Q4 的要求 (zip ≤ 500MB, git ≤ 1GB;请求体 ≤ 100MB)
   // 不设置默认 100KB — 会触发 413 Payload Too Large(即使走了 multer)
-  const expressApp = app.getHttpAdapter().getInstance() as import('express').Express;
+  const expressApp = app.getHttpAdapter().getInstance() as Express;
   expressApp.use(json({ limit: '50mb' }));
   expressApp.use(urlencoded({ limit: '50mb', extended: true }));
 

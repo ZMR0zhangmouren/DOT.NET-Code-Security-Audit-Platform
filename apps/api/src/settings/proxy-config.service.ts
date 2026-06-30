@@ -219,10 +219,6 @@ export class ProxyConfigService {
   ): Promise<{ ok: boolean; latencyMs: number; message: string }> {
     const start = Date.now();
     try {
-      const http = await import('node:http');
-      const https = await import('node:https');
-      const url = new URL(targetUrl);
-      const mod = url.protocol === 'https:' ? https : http;
       // MVP: simple TCP probe through proxy; true HTTP CONNECT 留 Phase 2
       const net = await import('node:net');
       const ok = await new Promise<boolean>((resolve) => {

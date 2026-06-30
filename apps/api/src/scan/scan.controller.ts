@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import type { CoverageMode } from '@platform/shared';
 

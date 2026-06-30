@@ -239,7 +239,6 @@ export default function ConfigPage(): React.ReactElement {
   const [proxyMode, setProxyMode] = useState<ProxyMode | null>(null);
   const [proxySaving, setProxySaving] = useState(false);
   const [testUrl, setTestUrl] = useState('https://www.baidu.com');
-  const [testResult, setTestResult] = useState<string | null>(null);
   const [testRunning, setTestRunning] = useState(false);
   const [proxyProtocol, setProxyProtocol] = useState<'http' | 'https' | 'socks5' | null>('http');
   const [proxyHost, setProxyHost] = useState('');

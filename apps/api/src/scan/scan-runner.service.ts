@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { writeFileSync, mkdirSync, appendFileSync, readdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { Inject, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
