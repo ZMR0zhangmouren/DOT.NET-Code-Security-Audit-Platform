@@ -48,3 +48,7 @@ logs/
 # TypeScript 增量编译缓存(tsc --incremental / 项目引用)
 *.tsbuildinfo
 *.zip
+
+# Vitest 覆盖率产物(运行时生成,coverage-summary.json 含绝对路径,不入库)
+coverage/
+**/coverage/
