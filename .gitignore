@@ -52,3 +52,15 @@ logs/
 # Vitest 覆盖率产物(运行时生成,coverage-summary.json 含绝对路径,不入库)
 coverage/
 **/coverage/
+
+# 本仓库专属 —— 项目级 AI 协作指令(私有)
+CLAUDE.md
+**/CLAUDE.md
+
+# 需求文档(私有产品/技术规格)
+需求文档.md
+**/需求文档.md
+
+# 临时测试目录(测试残留)
+tmp-test-dest-happy/
+**/tmp-test-dest-happy/
