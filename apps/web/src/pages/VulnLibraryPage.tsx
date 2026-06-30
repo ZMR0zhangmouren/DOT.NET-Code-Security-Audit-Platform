@@ -18,11 +18,25 @@ interface VulnLibraryEntry {
   fixedAt: number | null;
 }
 
+interface TrendBucket {
+  period: string;
+  total: number;
+  bySeverity: Record<string, number>;
+}
+
+const SEV_LABELS: Record<string, string> = { C: 'Critical', H: 'High', M: 'Medium', L: 'Low' };
+const SEV_COLORS: Record<string, string> = {
+  C: 'bg-red-600',
+  H: 'bg-orange-500',
+  M: 'bg-yellow-500',
+  L: 'bg-muted-foreground/40',
+};
+
 /**
  * §5.5 /projects/:id/vuln-library —— 漏洞库列表(根因级)
  *
- * 接 /api/projects/:id/vuln-library,展示根因级漏洞(按 fingerprint 聚合)。
- * 点行进详情页 /vuln-library/:id 看时间线 + 状态流转。
+ * Phase 3 新增漏洞趋势图(§5.5 时间聚合)。
+ * 接 /api/projects/:id/vuln-trend,按 day/week/month 展示 C/H/M/L 分层柱状图。
  */
 export default function VulnLibraryPage(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
@@ -30,13 +44,21 @@ export default function VulnLibraryPage(): React.ReactElement {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
+  // Phase 3 trend
+  const [trend, setTrend] = useState<TrendBucket[]>([]);
+  const [granularity, setGranularity] = useState<'day' | 'week'>('day');
+
   async function refresh(): Promise<void> {
     if (!id) return;
     setLoading(true);
     setErr(null);
     try {
-      const data = await api.get<VulnLibraryEntry[]>(`/projects/${id}/vuln-library`);
+      const [data, t] = await Promise.all([
+        api.get<VulnLibraryEntry[]>(`/projects/${id}/vuln-library`),
+        api.get<TrendBucket[]>(`/projects/${id}/vuln-trend?granularity=${granularity}&days=30`),
+      ]);
       setEntries(data);
+      setTrend(t);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -47,7 +69,9 @@ export default function VulnLibraryPage(): React.ReactElement {
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, granularity]);
+
+  const maxTotal = trend.reduce((m, b) => Math.max(m, b.total), 0);
 
   return (
     <main className="container py-8">
@@ -66,6 +90,82 @@ export default function VulnLibraryPage(): React.ReactElement {
           Refresh
         </Button>
       </header>
+
+      {/* Phase 3 — 漏洞趋势图 */}
+      {trend.length > 0 && (
+        <section className="mb-8 rounded-lg border bg-card p-6" data-testid="trend-section">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Vulnerability Trend</h2>
+            <div className="flex gap-1 rounded-md bg-muted p-0.5">
+              {(['day', 'week'] as const).map((g) => (
+                <button
+                  key={g}
+                  onClick={() => setGranularity(g)}
+                  className={`px-3 py-1 text-xs font-medium rounded ${
+                    granularity === g ? 'bg-background shadow-sm' : 'text-muted-foreground'
+                  }`}
+                >
+                  {g === 'day' ? 'Daily' : 'Weekly'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 柱状图 */}
+          <div className="flex items-end gap-1 h-48" data-testid="trend-chart">
+            {trend.map((b) => (
+              <div
+                key={b.period}
+                className="flex-1 flex flex-col items-center justify-end min-w-0"
+                title={`${b.period}: ${b.total} vulns${Object.entries(b.bySeverity)
+                  .map(([s, n]) => ` ${SEV_LABELS[s] ?? s}×${n}`)
+                  .join(',')}`}
+              >
+                <div className="w-full flex flex-col-reverse">
+                  {maxTotal > 0 && (
+                    <div
+                      className="w-full rounded-t-sm"
+                      style={{ height: `${Math.max((b.total / maxTotal) * 100, 1)}%` }}
+                    >
+                      {/* 堆叠色块 */}
+                      {(['C', 'H', 'M', 'L'] as const).map((sev) => {
+                        const n = b.bySeverity[sev] ?? 0;
+                        if (n === 0) return null;
+                        return (
+                          <div
+                            key={sev}
+                            className={`w-full ${SEV_COLORS[sev]}`}
+                            style={{ height: `${Math.max((n / b.total) * 100, 5)}%` }}
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                {granularity === 'day' ? (
+                  <span className="text-[10px] text-muted-foreground mt-1 truncate w-full text-center">
+                    {b.period.slice(5)}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground mt-1 truncate w-full text-center">
+                    {b.period.slice(5)}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* 图例 */}
+          <div className="flex gap-3 mt-3 text-xs text-muted-foreground">
+            {(['C', 'H', 'M', 'L'] as const).map((sev) => (
+              <span key={sev} className="flex items-center gap-1">
+                <span className={`inline-block w-3 h-3 rounded ${SEV_COLORS[sev]}`} />
+                {SEV_LABELS[sev]}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
 
       {err && (
         <p className="mb-3 text-sm text-destructive" role="alert">

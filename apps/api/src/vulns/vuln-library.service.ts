@@ -93,6 +93,56 @@ export class VulnLibraryService {
     };
   }
 
+  /**
+   * §5.5 Phase 3 — 漏洞趋势聚合
+   * 按 day/week/month 粒度统计 vuln_library_entries 的 created_at 分布,
+   * 返回 trend 数组供前端图表渲染。
+   */
+  getTrend(
+    projectId: string,
+    granularity: 'day' | 'week' | 'month',
+    days: number,
+  ): Array<{ period: string; total: number; bySeverity: Record<string, number> }> {
+    const rows = this.db
+      .select()
+      .from(vulnLibraryEntries)
+      .where(eq(vulnLibraryEntries.projectId, projectId))
+      .orderBy(asc(vulnLibraryEntries.createdAt))
+      .all() as Array<{ createdAt: number; severityMax: string }>;
+
+    if (rows.length === 0) return [];
+
+    // 按粒度分桶
+    const buckets = new Map<string, { total: number; bySeverity: Record<string, number> }>();
+    const now = Date.now();
+    const cutoff = now - days * 24 * 3600 * 1000;
+
+    for (const row of rows) {
+      if (row.createdAt < cutoff) continue;
+      const d = new Date(row.createdAt);
+      let key: string;
+      if (granularity === 'day') key = d.toISOString().slice(0, 10);
+      else if (granularity === 'week') {
+        const monday = new Date(d);
+        monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+        key = monday.toISOString().slice(0, 10);
+      } else {
+        key = d.toISOString().slice(0, 7); // YYYY-MM
+      }
+
+      const b = buckets.get(key) ?? { total: 0, bySeverity: {} };
+      b.total++;
+      const sev = row.severityMax ?? '?';
+      b.bySeverity[sev] = (b.bySeverity[sev] ?? 0) + 1;
+      buckets.set(key, b);
+    }
+
+    // 按 key 排序并返回
+    return Array.from(buckets.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([period, v]) => ({ period, total: v.total, bySeverity: v.bySeverity }));
+  }
+
   setStatus(id: string, status: VulnLibraryStatus): VulnLibraryWithTimeline {
     const existing = this.db
       .select()

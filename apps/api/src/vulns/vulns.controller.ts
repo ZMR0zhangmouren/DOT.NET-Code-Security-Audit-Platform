@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import type { VulnerabilityStatus, VulnLibraryStatus } from '@platform/shared';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
@@ -36,6 +36,21 @@ export class VulnsController {
   @Get('projects/:id/vuln-library')
   listForProject(@Param('id') projectId: string): VulnLibraryPublic[] {
     return this.library.list(projectId);
+  }
+
+  /**
+   * Phase 3 — 漏洞趋势图
+   * GET /api/projects/:id/vuln-trend?granularity=day&days=30
+   */
+  @Get('projects/:id/vuln-trend')
+  trend(
+    @Param('id') projectId: string,
+    @Query('granularity') g: string,
+    @Query('days') d: string,
+  ): Array<{ period: string; total: number; bySeverity: Record<string, number> }> {
+    const granularity = (g === 'week' || g === 'month' ? g : 'day') as 'day' | 'week' | 'month';
+    const days = Math.min(Math.max(Number(d) || 30, 7), 365); // clamp 7-365
+    return this.library.getTrend(projectId, granularity, days);
   }
 
   @Get('vuln-library/:id')
