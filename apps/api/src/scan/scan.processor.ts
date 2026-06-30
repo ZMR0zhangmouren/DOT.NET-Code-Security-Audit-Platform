@@ -1,7 +1,8 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { type Job } from 'bullmq'; // runtime ref(WorkerHost.process(job: Job) 需要 BullMQ Job class 在 emitDecoratorMetadata 时存在)
+// type-only import —— `import { type ... }` 形式不会触发 consistent-type-imports 规则,
+// 且 `Job<>` 只用在 process(job: Job<...>) 签名,运行时不需要 class metadata
+import { type Job } from 'bullmq';
 
 import {
   SCAN_MAX_CONCURRENT_DEFAULT,
