@@ -1,0 +1,478 @@
+<!--
+  📱 微信公众号文章 HTML · .NET 代码安全审计平台
+  适配:微信公众号图文编辑器粘贴(内联 style, 无 script, 表格布局)
+  使用:复制 <body> 内全部内容 → 微信图文编辑器 → 粘贴
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>.NET 代码安全审计平台 —— 把 38 个 Skill 升级成团队级 Web 平台</title>
+</head>
+<body style="margin: 0; padding: 0; background: #0f0f1a; font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;">
+
+<!-- ==================== 1. 顶部 HERO 横幅 ==================== -->
+<section style="padding: 50px 20px 40px; text-align: center; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); position: relative; overflow: hidden;">
+  <!-- 装饰圆点 -->
+  <div style="position: absolute; top: 30px; left: 30px; width: 80px; height: 80px; border-radius: 50%; background: radial-gradient(circle, rgba(102, 126, 234, 0.4), transparent 70%);"></div>
+  <div style="position: absolute; top: 120px; right: 40px; width: 60px; height: 60px; border-radius: 50%; background: radial-gradient(circle, rgba(236, 72, 153, 0.4), transparent 70%);"></div>
+  <div style="position: absolute; bottom: 60px; left: 60px; width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle, rgba(34, 211, 238, 0.3), transparent 70%);"></div>
+
+  <div style="display: inline-block; padding: 6px 16px; background: rgba(102, 126, 234, 0.2); border: 1px solid rgba(102, 126, 234, 0.5); border-radius: 20px; color: #a5b4fc; font-size: 13px; letter-spacing: 2px; margin-bottom: 24px;">
+    🚀 自托管 · 团队协作 · 可观测 · 可复现
+  </div>
+
+  <h1 style="margin: 0 0 16px; font-size: 38px; font-weight: 900; color: #ffffff; letter-spacing: 1px; line-height: 1.2; text-shadow: 0 2px 20px rgba(102, 126, 234, 0.5);">
+    .NET 代码安全审计平台
+  </h1>
+
+  <p style="margin: 0 0 8px; font-size: 18px; color: #94a3b8; font-weight: 300; letter-spacing: 1px;">
+    OpenAI Agents SDK × NestJS × React × BullMQ
+  </p>
+
+  <p style="margin: 24px auto 32px; max-width: 560px; font-size: 15px; line-height: 1.7; color: #cbd5e1;">
+    把已有的 <strong style="color: #fbbf24;">38 个 .NET 审计 Skill</strong> 从单点 CLI 工具,升级为团队级 Web 平台 —— 在浏览器里上传源码,后端跑 BullMQ 扫描流水线,产出<strong style="color: #34d399;">可分派、可追踪、可关闭</strong>的漏洞库与 Markdown 报告。
+  </p>
+
+  <!-- 顶部数据条 -->
+  <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 0 auto;">
+    <tr>
+      <td style="padding: 0 8px;">
+        <div style="display: inline-block; padding: 10px 18px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2)); border: 1px solid rgba(102, 126, 234, 0.4); border-radius: 12px; color: #e0e7ff; font-size: 13px;">
+          <strong style="font-size: 18px; color: #a5b4fc;">454</strong>&nbsp; 测试通过
+        </div>
+      </td>
+      <td style="padding: 0 8px;">
+        <div style="display: inline-block; padding: 10px 18px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.2)); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 12px; color: #d1fae5; font-size: 13px;">
+          <strong style="font-size: 18px; color: #6ee7b7;">80.18%</strong>&nbsp; API 覆盖率
+        </div>
+      </td>
+      <td style="padding: 0 8px;">
+        <div style="display: inline-block; padding: 10px 18px; background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.2)); border: 1px solid rgba(236, 72, 153, 0.4); border-radius: 12px; color: #fce7f3; font-size: 13px;">
+          <strong style="font-size: 18px; color: #f9a8d4;">17</strong>&nbsp; 数据表
+        </div>
+      </td>
+      <td style="padding: 0 8px;">
+        <div style="display: inline-block; padding: 10px 18px; background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.2)); border: 1px solid rgba(251, 191, 36, 0.4); border-radius: 12px; color: #fef3c7; font-size: 13px;">
+          <strong style="font-size: 18px; color: #fcd34d;">38</strong>&nbsp; 审计 Skill
+        </div>
+      </td>
+    </tr>
+  </table>
+</section>
+
+<!-- ==================== 2. 痛点 → 解法 ==================== -->
+<section style="padding: 40px 20px; background: #ffffff;">
+  <h2 style="margin: 0 0 30px; text-align: center; font-size: 28px; color: #0f172a;">
+    <span style="display: inline-block; padding: 4px 12px; background: linear-gradient(135deg, #fee2e2, #fecaca); border-radius: 8px; color: #991b1b; font-size: 14px; margin-right: 8px;">痛点</span>
+    <span style="color: #94a3b8;">→</span>
+    <span style="display: inline-block; padding: 4px 12px; background: linear-gradient(135deg, #d1fae5, #a7f3d0); border-radius: 8px; color: #065f46; font-size: 14px; margin-left: 8px;">解法</span>
+  </h2>
+
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 700px; margin: 0 auto;">
+    <tr>
+      <td width="48%" valign="top" style="padding: 16px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius: 12px; border-left: 4px solid #ef4444;">
+        <div style="font-size: 13px; font-weight: 700; color: #991b1b; margin-bottom: 8px;">❌ 传统手工审计</div>
+        <div style="font-size: 13px; line-height: 1.7; color: #475569;">
+          · 单人跑脚本,结果散落邮件<br>
+          · 漏洞无法去重,跨项目追踪难<br>
+          · Skill 升级无 audit trail<br>
+          · 无并发、无崩溃恢复
+        </div>
+      </td>
+      <td width="4%"></td>
+      <td width="48%" valign="top" style="padding: 16px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 12px; border-left: 4px solid #22c55e;">
+        <div style="font-size: 13px; font-weight: 700; color: #065f46; margin-bottom: 8px;">✅ 本平台</div>
+        <div style="font-size: 13px; line-height: 1.7; color: #475569;">
+          · 浏览器一键上传,团队共享结果<br>
+          · VulnLibrary 自动去重聚合<br>
+          · SkillBundleVersion 锁定 commit<br>
+          · BullMQ + Redis 并发扫描
+        </div>
+      </td>
+    </tr>
+  </table>
+</section>
+
+<!-- ==================== 3. 平台架构图(SVG) ==================== -->
+<section style="padding: 50px 20px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+  <h2 style="margin: 0 0 12px; text-align: center; font-size: 28px; color: #f1f5f9;">🏗️ 平台架构图</h2>
+  <p style="margin: 0 0 30px; text-align: center; font-size: 14px; color: #94a3b8;">从浏览器到 .NET 源码,完整数据流</p>
+
+  <div style="max-width: 720px; margin: 0 auto; background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 24px;">
+<svg viewBox="0 0 720 760" xmlns="http://www.w3.org/2000/svg" style="display: block; width: 100%; height: auto; font-family: -apple-system, 'PingFang SC', sans-serif;">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea"/>
+      <stop offset="100%" style="stop-color:#764ba2"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22d3ee"/>
+      <stop offset="100%" style="stop-color:#0891b2"/>
+    </linearGradient>
+    <linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b"/>
+      <stop offset="100%" style="stop-color:#d97706"/>
+    </linearGradient>
+    <linearGradient id="g4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ec4899"/>
+      <stop offset="100%" style="stop-color:#be185d"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <!-- Layer 1: Browser -->
+  <rect x="40" y="20" width="640" height="80" rx="12" fill="url(#g1)" opacity="0.9"/>
+  <text x="360" y="55" text-anchor="middle" fill="#fff" font-size="18" font-weight="700">🌐 Browser (React + Vite + shadcn/ui)</text>
+  <text x="360" y="80" text-anchor="middle" fill="#e0e7ff" font-size="13">127.0.0.1:5180</text>
+
+  <!-- Arrow -->
+  <line x1="360" y1="100" x2="360" y2="135" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="380" y="120" fill="#94a3b8" font-size="12">/api · /socket.io</text>
+
+  <!-- Layer 2: API -->
+  <rect x="40" y="140" width="640" height="220" rx="12" fill="#1e293b" stroke="#667eea" stroke-width="2"/>
+  <text x="60" y="165" fill="#a5b4fc" font-size="13" font-weight="700">📦 NestJS 10 · 127.0.0.1:3030</text>
+
+  <!-- API internal boxes -->
+  <rect x="70" y="185" width="180" height="50" rx="8" fill="#312e81" stroke="#818cf8"/>
+  <text x="160" y="205" text-anchor="middle" fill="#e0e7ff" font-size="13" font-weight="600">🛡️ JwtAuthGuard</text>
+  <text x="160" y="223" text-anchor="middle" fill="#c7d2fe" font-size="11">+ RolesGuard · @Roles</text>
+
+  <rect x="270" y="185" width="180" height="50" rx="8" fill="#1e3a8a" stroke="#60a5fa"/>
+  <text x="360" y="205" text-anchor="middle" fill="#dbeafe" font-size="13" font-weight="600">🎮 16 Controllers</text>
+  <text x="360" y="223" text-anchor="middle" fill="#bfdbfe" font-size="11">/auth · /projects · /scan</text>
+
+  <rect x="470" y="185" width="180" height="50" rx="8" fill="#0e7490" stroke="#22d3ee"/>
+  <text x="560" y="205" text-anchor="middle" fill="#cffafe" font-size="13" font-weight="600">⚙️ 21 Services</text>
+  <text x="560" y="223" text-anchor="middle" fill="#a5f3fc" font-size="11">Scan · Vuln · Skill</text>
+
+  <!-- DB -->
+  <rect x="70" y="270" width="380" height="50" rx="8" fill="#064e3b" stroke="#34d399"/>
+  <text x="260" y="290" text-anchor="middle" fill="#d1fae5" font-size="13" font-weight="600">🗄️ Drizzle · SQLite</text>
+  <text x="260" y="308" text-anchor="middle" fill="#a7f3d0" font-size="11">17 张表 · WAL 模式 · 迁移化</text>
+
+  <!-- BullMQ -->
+  <rect x="470" y="270" width="180" height="50" rx="8" fill="url(#g2)"/>
+  <text x="560" y="290" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">⚡ BullMQ Queue</text>
+  <text x="560" y="308" text-anchor="middle" fill="#cffafe" font-size="11">Scan · Process</text>
+
+  <!-- Arrow to BullMQ -->
+  <line x1="450" y1="295" x2="470" y2="295" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Layer 3: ScanRunner -->
+  <rect x="180" y="400" width="360" height="60" rx="8" fill="url(#g3)"/>
+  <text x="360" y="425" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">🚀 ScanRunnerService</text>
+  <text x="360" y="445" text-anchor="middle" fill="#fef3c7" font-size="11">kickoff → 4 skills → invokeSkill → AgentTraces.record</text>
+
+  <line x1="360" y1="320" x2="360" y2="400" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Layer 4: Submodule (真理之源) -->
+  <rect x="40" y="500" width="640" height="240" rx="12" fill="#7c2d12" stroke="#fb923c" stroke-width="2"/>
+  <text x="60" y="525" fill="#fed7aa" font-size="13" font-weight="700">📚 上游开源 .NET 审计 Skill 集合</text>
+  <text x="60" y="543" fill="#fdba74" font-size="11">github.com/ZMR0zhangmouren/dotnet-security-audit-skill</text>
+
+  <rect x="70" y="560" width="280" height="40" rx="6" fill="#431407" stroke="#ea580c"/>
+  <text x="210" y="585" text-anchor="middle" fill="#fed7aa" font-size="12">🤖 agents/dotnet代码审计.agent.md</text>
+
+  <rect x="370" y="560" width="280" height="40" rx="6" fill="#431407" stroke="#ea580c"/>
+  <text x="510" y="585" text-anchor="middle" fill="#fed7aa" font-size="12">📋 skills/dotnet-audit-pipeline/SKILL.md</text>
+
+  <rect x="70" y="615" width="280" height="40" rx="6" fill="#431407" stroke="#ea580c"/>
+  <text x="210" y="640" text-anchor="middle" fill="#fed7aa" font-size="12">🔧 framework × 9 / vuln × 31 / exploit-chain</text>
+
+  <rect x="370" y="615" width="280" height="40" rx="6" fill="#431407" stroke="#ea580c"/>
+  <text x="510" y="640" text-anchor="middle" fill="#fed7aa" font-size="12">📐 shared/*.md (9 份共享规范)</text>
+
+  <rect x="70" y="670" width="580" height="40" rx="6" fill="url(#g4)" opacity="0.3"/>
+  <text x="360" y="695" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">🔒 平台只读,通过 SkillBundleVersion 锁定 commit</text>
+
+  <line x1="360" y1="460" x2="360" y2="500" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Redis below API -->
+  <rect x="240" y="755" width="240" height="0" fill="none"/>
+</svg>
+  </div>
+</section>
+
+<!-- ==================== 4. 数据看板 ==================== -->
+<section style="padding: 40px 20px; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);">
+  <h2 style="margin: 0 0 30px; text-align: center; font-size: 28px; color: #f1f5f9;">📊 数据看板</h2>
+
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 700px; margin: 0 auto;">
+    <tr>
+      <td width="33%" align="center" style="padding: 8px;">
+        <div style="padding: 24px 16px; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;">
+          <div style="font-size: 44px; font-weight: 900; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: #60a5fa;">454</div>
+          <div style="margin-top: 4px; font-size: 13px; color: #cbd5e1; letter-spacing: 1px;">测试通过</div>
+          <div style="margin-top: 6px; font-size: 11px; color: #94a3b8;">shared 6 + api 405 + web 43</div>
+        </div>
+      </td>
+      <td width="33%" align="center" style="padding: 8px;">
+        <div style="padding: 24px 16px; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;">
+          <div style="font-size: 44px; font-weight: 900; background: linear-gradient(135deg, #34d399, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: #34d399;">80.18%</div>
+          <div style="margin-top: 4px; font-size: 13px; color: #cbd5e1; letter-spacing: 1px;">API 覆盖率</div>
+          <div style="margin-top: 6px; font-size: 11px; color: #94a3b8;">shared / web 100% · 阈值启用</div>
+        </div>
+      </td>
+      <td width="33%" align="center" style="padding: 8px;">
+        <div style="padding: 24px 16px; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;">
+          <div style="font-size: 44px; font-weight: 900; background: linear-gradient(135deg, #f472b6, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: #f472b6;">38</div>
+          <div style="margin-top: 4px; font-size: 13px; color: #cbd5e1; letter-spacing: 1px;">审计 Skill</div>
+          <div style="margin-top: 6px; font-size: 11px; color: #94a3b8;">6 基础 + 9 框架 + 31 漏洞</div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td width="33%" align="center" style="padding: 8px;">
+        <div style="padding: 24px 16px; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;">
+          <div style="font-size: 44px; font-weight: 900; background: linear-gradient(135deg, #fbbf24, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: #fbbf24;">17</div>
+          <div style="margin-top: 4px; font-size: 13px; color: #cbd5e1; letter-spacing: 1px;">数据库表</div>
+          <div style="margin-top: 6px; font-size: 11px; color: #94a3b8;">SQLite · Drizzle 迁移</div>
+        </div>
+      </td>
+      <td width="33%" align="center" style="padding: 8px;">
+        <div style="padding: 24px 16px; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;">
+          <div style="font-size: 44px; font-weight: 900; background: linear-gradient(135deg, #22d3ee, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: #22d3ee;">21</div>
+          <div style="margin-top: 4px; font-size: 13px; color: #cbd5e1; letter-spacing: 1px;">后端模块</div>
+          <div style="margin-top: 6px; font-size: 11px; color: #94a3b8;">NestJS Modules · DI 全绿</div>
+        </div>
+      </td>
+      <td width="33%" align="center" style="padding: 8px;">
+        <div style="padding: 24px 16px; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;">
+          <div style="font-size: 44px; font-weight: 900; background: linear-gradient(135deg, #c084fc, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: #c084fc;">16</div>
+          <div style="margin-top: 4px; font-size: 13px; color: #cbd5e1; letter-spacing: 1px;">前端页面</div>
+          <div style="margin-top: 6px; font-size: 11px; color: #94a3b8;">React Router · shadcn/ui</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+</section>
+
+<!-- ==================== 5. 核心特性卡片 ==================== -->
+<section style="padding: 40px 20px; background: #ffffff;">
+  <h2 style="margin: 0 0 8px; text-align: center; font-size: 28px; color: #0f172a;">✨ 十大核心特性</h2>
+  <p style="margin: 0 0 30px; text-align: center; font-size: 14px; color: #64748b;">从接入到产出的完整能力</p>
+
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 700px; margin: 0 auto;">
+    <tr>
+      <td width="50%" valign="top" style="padding: 6px;">
+        <div style="padding: 16px; background: linear-gradient(135deg, #eff6ff, #dbeafe); border-radius: 12px; border-top: 3px solid #3b82f6;">
+          <div style="font-size: 22px; margin-bottom: 4px;">📦</div>
+          <div style="font-size: 15px; font-weight: 700; color: #1e40af; margin-bottom: 4px;">多源接入</div>
+          <div style="font-size: 12px; line-height: 1.6; color: #475569;">zip 上传 / from-git (HTTPS+SSH+8 类错误) / from-github (REST tarball)</div>
+        </div>
+      </td>
+      <td width="50%" valign="top" style="padding: 6px;">
+        <div style="padding: 16px; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-radius: 12px; border-top: 3px solid #22c55e;">
+          <div style="font-size: 22px; margin-bottom: 4px;">⚡</div>
+          <div style="font-size: 15px; font-weight: 700; color: #166534; margin-bottom: 4px;">真实并发扫描</div>
+          <div style="font-size: 12px; line-height: 1.6; color: #475569;">BullMQ + Redis · 崩溃可恢复 · Bull-Board 可视化</div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td width="50%" valign="top" style="padding: 6px;">
+        <div style="padding: 16px; background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 12px; border-top: 3px solid #f59e0b;">
+          <div style="font-size: 22px; margin-bottom: 4px;">🗂️</div>
+          <div style="font-size: 15px; font-weight: 700; color: #92400e; margin-bottom: 4px;">漏洞库 + 实例双层</div>
+          <div style="font-size: 12px; line-height: 1.6; color: #475569;">VulnLibraryEntry 聚合根因 · Vulnerability 记录实例 · 跨 ScanRun 去重</div>
+        </div>
+      </td>
+      <td width="50%" valign="top" style="padding: 6px;">
+        <div style="padding: 16px; background: linear-gradient(135deg, #fce7f3, #fbcfe8); border-radius: 12px; border-top: 3px solid #ec4899;">
+          <div style="font-size: 22px; margin-bottom: 4px;">🔐</div>
+          <div style="font-size: 15px; font-weight: 700; color: #9f1239; margin-bottom: 4px;">真 JWT + 角色守卫</div>
+          <div style="font-size: 12px; line-height: 1.6; color: #475569;">JwtAuthGuard · RolesGuard · @Roles('admin') 拦截写端点</div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td width="50%" valign="top" style="padding: 6px;">
+        <div style="padding: 16px; background: linear-gradient(135deg, #ede9fe, #ddd6fe); border-radius: 12px; border-top: 3px solid #8b5cf6;">
+          <div style="font-size: 22px; margin-bottom: 4px;">🔄</div>
+          <div style="font-size: 15px; font-weight: 700; color: #5b21b6; margin-bottom: 4px;">多 Skill Bundle 并存</div>
+          <div style="font-size: 12px; line-height: 1.6; color: #475569;">setDefault 事务原子 · replay-with-latest 用最新 Skill 重跑</div>
+        </div>
+      </td>
+      <td width="50%" valign="top" style="padding: 6px;">
+        <div style="padding: 16px; background: linear-gradient(135deg, #cffafe, #a5f3fc); border-radius: 12px; border-top: 3px solid #06b6d4;">
+          <div style="font-size: 22px; margin-bottom: 4px;">📝</div>
+          <div style="font-size: 15px; font-weight: 700; color: #155e75; margin-bottom: 4px;">报告 Markdown 渲染</div>
+          <div style="font-size: 12px; line-height: 1.6; color: #475569;">react-markdown + remark-gfm + 章节导航 IntersectionObserver</div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td width="50%" valign="top" style="padding: 6px;">
+        <div style="padding: 16px; background: linear-gradient(135deg, #fee2e2, #fecaca); border-radius: 12px; border-top: 3px solid #ef4444;">
+          <div style="font-size: 22px; margin-bottom: 4px;">🔍</div>
+          <div style="font-size: 15px; font-weight: 700; color: #991b1b; margin-bottom: 4px;">Agent Trace 全链路</div>
+          <div style="font-size: 12px; line-height: 1.6; color: #475569;">agent_traces 表 + Timeline 页面 + 单条 trace 检索</div>
+        </div>
+      </td>
+      <td width="50%" valign="top" style="padding: 6px;">
+        <div style="padding: 16px; background: linear-gradient(135deg, #ecfdf5, #d1fae5); border-radius: 12px; border-top: 3px solid #10b981;">
+          <div style="font-size: 22px; margin-bottom: 4px;">📊</div>
+          <div style="font-size: 15px; font-weight: 700; color: #065f46; margin-bottom: 4px;">覆盖率门禁</div>
+          <div style="font-size: 12px; line-height: 1.6; color: #475569;">@vitest/coverage-v8 · shared/web 100% · api 80.18% 阈值强制</div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td width="50%" valign="top" style="padding: 6px;">
+        <div style="padding: 16px; background: linear-gradient(135deg, #fef9c3, #fef08a); border-radius: 12px; border-top: 3px solid #eab308;">
+          <div style="font-size: 22px; margin-bottom: 4px;">⚖️</div>
+          <div style="font-size: 15px; font-weight: 700; color: #854d0e; margin-bottom: 4px;">多 ScanRun 对比</div>
+          <div style="font-size: 12px; line-height: 1.6; color: #475569;">GET /api/projects/:id/scans/diff · 端到端实测 · DB 真写</div>
+        </div>
+      </td>
+      <td width="50%" valign="top" style="padding: 6px;">
+        <div style="padding: 16px; background: linear-gradient(135deg, #dbeafe, #bfdbfe); border-radius: 12px; border-top: 3px solid #2563eb;">
+          <div style="font-size: 22px; margin-bottom: 4px;">🐳</div>
+          <div style="font-size: 15px; font-weight: 700; color: #1e3a8a; margin-bottom: 4px;">Docker 化部署</div>
+          <div style="font-size: 12px; line-height: 1.6; color: #475569;">api + web + redis 3 服务 · 多阶段构建 · 自动迁移</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+</section>
+
+<!-- ==================== 6. 快速启动 ==================== -->
+<section style="padding: 40px 20px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+  <h2 style="margin: 0 0 30px; text-align: center; font-size: 28px; color: #f1f5f9;">🚀 4 步启动</h2>
+
+  <div style="max-width: 700px; margin: 0 auto;">
+    <!-- Step 1 -->
+    <div style="margin-bottom: 12px; padding: 16px 20px; background: rgba(102, 126, 234, 0.1); border-left: 3px solid #667eea; border-radius: 8px;">
+      <div style="display: inline-block; padding: 2px 10px; background: #667eea; color: #fff; border-radius: 12px; font-size: 11px; font-weight: 700; margin-right: 8px;">1</div>
+      <span style="color: #e0e7ff; font-family: 'Courier New', monospace; font-size: 13px;">pnpm install</span>
+      <span style="color: #94a3b8; font-size: 12px; margin-left: 8px;">装依赖</span>
+    </div>
+    <!-- Step 2 -->
+    <div style="margin-bottom: 12px; padding: 16px 20px; background: rgba(34, 197, 94, 0.1); border-left: 3px solid #22c55e; border-radius: 8px;">
+      <div style="display: inline-block; padding: 2px 10px; background: #22c55e; color: #fff; border-radius: 12px; font-size: 11px; font-weight: 700; margin-right: 8px;">2</div>
+      <span style="color: #d1fae5; font-family: 'Courier New', monospace; font-size: 13px;">docker run -d -p 6379:6379 redis:7-alpine</span>
+      <span style="color: #94a3b8; font-size: 12px; margin-left: 8px;">起 Redis</span>
+    </div>
+    <!-- Step 3 -->
+    <div style="margin-bottom: 12px; padding: 16px 20px; background: rgba(251, 191, 36, 0.1); border-left: 3px solid #f59e0b; border-radius: 8px;">
+      <div style="display: inline-block; padding: 2px 10px; background: #f59e0b; color: #fff; border-radius: 12px; font-size: 11px; font-weight: 700; margin-right: 8px;">3</div>
+      <span style="color: #fef3c7; font-family: 'Courier New', monospace; font-size: 13px;">pnpm --filter @platform/api seed</span>
+      <span style="color: #94a3b8; font-size: 12px; margin-left: 8px;">种 admin / admin123</span>
+    </div>
+    <!-- Step 4 -->
+    <div style="padding: 16px 20px; background: rgba(236, 72, 153, 0.1); border-left: 3px solid #ec4899; border-radius: 8px;">
+      <div style="display: inline-block; padding: 2px 10px; background: #ec4899; color: #fff; border-radius: 12px; font-size: 11px; font-weight: 700; margin-right: 8px;">4</div>
+      <span style="color: #fce7f3; font-family: 'Courier New', monospace; font-size: 13px;">pnpm dev</span>
+      <span style="color: #94a3b8; font-size: 12px; margin-left: 8px;">起 API(3030) + Web(5180)</span>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 7. 核心模块表 ==================== -->
+<section style="padding: 40px 20px; background: #ffffff;">
+  <h2 style="margin: 0 0 8px; text-align: center; font-size: 28px; color: #0f172a;">🎯 核心模块一览</h2>
+  <p style="margin: 0 0 24px; text-align: center; font-size: 14px; color: #64748b;">12 个核心路由,覆盖完整审计工作流</p>
+
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 700px; margin: 0 auto; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08);">
+    <thead>
+      <tr style="background: linear-gradient(135deg, #667eea, #764ba2);">
+        <th align="left" style="padding: 12px 16px; color: #ffffff; font-size: 13px; font-weight: 700;">模块</th>
+        <th align="left" style="padding: 12px 16px; color: #ffffff; font-size: 13px; font-weight: 700;">路由</th>
+        <th align="left" style="padding: 12px 16px; color: #ffffff; font-size: 13px; font-weight: 700;">职责</th>
+      </tr>
+    </thead>
+    <tbody style="background: #ffffff;">
+      <tr><td style="padding: 10px 16px; font-size: 13px; color: #0f172a; border-bottom: 1px solid #f1f5f9;"><strong>auth</strong></td><td style="padding: 10px 16px; font-size: 12px; color: #475569; font-family: monospace; border-bottom: 1px solid #f1f5f9;">/api/auth/*</td><td style="padding: 10px 16px; font-size: 12px; color: #475569; border-bottom: 1px solid #f1f5f9;">JWT 登录 + 改密码 + refresh</td></tr>
+      <tr style="background: #f8fafc;"><td style="padding: 10px 16px; font-size: 13px; color: #0f172a; border-bottom: 1px solid #f1f5f9;"><strong>projects</strong></td><td style="padding: 10px 16px; font-size: 12px; color: #475569; font-family: monospace; border-bottom: 1px solid #f1f5f9;">/api/projects/*</td><td style="padding: 10px 16px; font-size: 12px; color: #475569; border-bottom: 1px solid #f1f5f9;">项目 CRUD + Members 协作</td></tr>
+      <tr><td style="padding: 10px 16px; font-size: 13px; color: #0f172a; border-bottom: 1px solid #f1f5f9;"><strong>code-versions</strong></td><td style="padding: 10px 16px; font-size: 12px; color: #475569; font-family: monospace; border-bottom: 1px solid #f1f5f9;">/api/code-versions/*</td><td style="padding: 10px 16px; font-size: 12px; color: #475569; border-bottom: 1px solid #f1f5f9;">zip / from-git / from-github</td></tr>
+      <tr style="background: #f8fafc;"><td style="padding: 10px 16px; font-size: 13px; color: #0f172a; border-bottom: 1px solid #f1f5f9;"><strong>scan</strong></td><td style="padding: 10px 16px; font-size: 12px; color: #475569; font-family: monospace; border-bottom: 1px solid #f1f5f9;">/api/scan-runs/*</td><td style="padding: 10px 16px; font-size: 12px; color: #475569; border-bottom: 1px solid #f1f5f9;">启动 / 重跑 / Diff / 覆盖统计</td></tr>
+      <tr><td style="padding: 10px 16px; font-size: 13px; color: #0f172a; border-bottom: 1px solid #f1f5f9;"><strong>vulns</strong></td><td style="padding: 10px 16px; font-size: 12px; color: #475569; font-family: monospace; border-bottom: 1px solid #f1f5f9;">/api/vuln-library/*</td><td style="padding: 10px 16px; font-size: 12px; color: #475569; border-bottom: 1px solid #f1f5f9;">漏洞库聚合 + 详情 + 趋势</td></tr>
+      <tr style="background: #f8fafc;"><td style="padding: 10px 16px; font-size: 13px; color: #0f172a; border-bottom: 1px solid #f1f5f9;"><strong>agent-traces</strong></td><td style="padding: 10px 16px; font-size: 12px; color: #475569; font-family: monospace; border-bottom: 1px solid #f1f5f9;">/api/scan-runs/:id/trace*</td><td style="padding: 10px 16px; font-size: 12px; color: #475569; border-bottom: 1px solid #f1f5f9;">完整 trace / summary / 单条</td></tr>
+      <tr><td style="padding: 10px 16px; font-size: 13px; color: #0f172a; border-bottom: 1px solid #f1f5f9;"><strong>skill-bundles</strong></td><td style="padding: 10px 16px; font-size: 12px; color: #475569; font-family: monospace; border-bottom: 1px solid #f1f5f9;">/api/skill-bundle-versions/*</td><td style="padding: 10px 16px; font-size: 12px; color: #475569; border-bottom: 1px solid #f1f5f9;">多 Bundle 并存 + setDefault</td></tr>
+      <tr style="background: #f8fafc;"><td style="padding: 10px 16px; font-size: 13px; color: #0f172a; border-bottom: 1px solid #f1f5f9;"><strong>settings</strong></td><td style="padding: 10px 16px; font-size: 12px; color: #475569; font-family: monospace; border-bottom: 1px solid #f1f5f9;">/api/settings/*</td><td style="padding: 10px 16px; font-size: 12px; color: #475569; border-bottom: 1px solid #f1f5f9;">AI Key + Git 凭证 + 代理</td></tr>
+      <tr><td style="padding: 10px 16px; font-size: 13px; color: #0f172a; border-bottom: 1px solid #f1f5f9;"><strong>admin/queue</strong></td><td style="padding: 10px 16px; font-size: 12px; color: #475569; font-family: monospace; border-bottom: 1px solid #f1f5f9;">/admin/queue</td><td style="padding: 10px 16px; font-size: 12px; color: #475569; border-bottom: 1px solid #f1f5f9;">Bull-Board 队列可视化</td></tr>
+      <tr style="background: #f8fafc;"><td style="padding: 10px 16px; font-size: 13px; color: #0f172a;"><strong>realtime</strong></td><td style="padding: 10px 16px; font-size: 12px; color: #475569; font-family: monospace;">/socket.io</td><td style="padding: 10px 16px; font-size: 12px; color: #475569;">扫描日志 / 进度 WebSocket</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ==================== 8. 路线图 ==================== -->
+<section style="padding: 40px 20px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);">
+  <h2 style="margin: 0 0 30px; text-align: center; font-size: 28px; color: #0c4a6e;">🗺️ 路线图</h2>
+
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 700px; margin: 0 auto;">
+    <tr>
+      <td width="50%" valign="top" style="padding: 6px;">
+        <div style="padding: 18px; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 16px rgba(34, 197, 94, 0.15); border-top: 3px solid #22c55e;">
+          <div style="font-size: 14px; font-weight: 700; color: #166534; margin-bottom: 12px;">✅ 已落地</div>
+          <div style="font-size: 12px; line-height: 1.9; color: #475569;">
+            · 多 Skill Bundle + replay-with-latest<br>
+            · 真接 from-git + from-github<br>
+            · BullMQ + Redis + Bull-Board<br>
+            · 真 JWT + AdminGuard<br>
+            · Agent Trace 全链路追踪<br>
+            · 多 ScanRun 对比 + Markdown 渲染<br>
+            · Phase 4 Docker 化部署<br>
+            · refresh-token + HttpOnly Cookie<br>
+            · Phase 3 漏洞趋势图
+          </div>
+        </div>
+      </td>
+      <td width="50%" valign="top" style="padding: 6px;">
+        <div style="padding: 18px; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 16px rgba(251, 191, 36, 0.15); border-top: 3px solid #f59e0b;">
+          <div style="font-size: 14px; font-weight: 700; color: #92400e; margin-bottom: 12px;">📋 待办候选</div>
+          <div style="font-size: 12px; line-height: 1.9; color: #475569;">
+            · Phase 2 e2e:web RTL 覆盖 12 页面<br>
+            · 真 git clone e2e(公开 repo)<br>
+            · Skill 升级自动跑一遍重扫<br>
+            · 远程备份(配 git remote URL)<br>
+            · Phase 3 漏洞修复建议生成
+          </div>
+        </div>
+      </td>
+    </tr>
+  </table>
+</section>
+
+<!-- ==================== 9. 结尾 CTA ==================== -->
+<section style="padding: 50px 20px; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%); text-align: center;">
+  <div style="display: inline-block; padding: 6px 16px; background: rgba(251, 191, 36, 0.2); border: 1px solid rgba(251, 191, 36, 0.5); border-radius: 20px; color: #fcd34d; font-size: 12px; letter-spacing: 2px; margin-bottom: 20px;">
+    ⭐ STAR · FORK · TRY IT
+  </div>
+  <h2 style="margin: 0 0 12px; font-size: 32px; font-weight: 900; color: #ffffff; letter-spacing: 1px;">立即体验</h2>
+  <p style="margin: 0 0 28px; font-size: 14px; color: #cbd5e1; max-width: 500px; margin-left: auto; margin-right: auto; line-height: 1.6;">
+    完全开源,本地 5 分钟跑通。把单点 CLI 工具升级为团队级平台,从此让 .NET 审计 Skill 为团队服务。
+  </p>
+
+  <!-- CTA Button -->
+  <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 0 auto 32px;">
+    <tr>
+      <td style="padding: 0 8px;">
+        <div style="display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 12px; color: #ffffff; font-size: 15px; font-weight: 700; box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);">
+          ⭐ GitHub →
+        </div>
+      </td>
+      <td style="padding: 0 8px;">
+        <div style="display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 12px; color: #ffffff; font-size: 15px; font-weight: 700; box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);">
+          📚 上游 Skill →
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <div style="font-size: 11px; color: #94a3b8; line-height: 1.8;">
+    github.com/ZMR0zhangmouren/DOT.NET-Code-Security-Audit-Platform<br>
+    github.com/ZMR0zhangmouren/dotnet-security-audit-skill
+  </div>
+
+  <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 11px; color: #64748b;">
+    License: Internal · Built with NestJS 10 · React 18 · OpenAI Agents SDK · BullMQ
+  </div>
+</section>
+
+</body>
+</html>
