@@ -1,20 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
+import { PageHeader } from '@/components/PageHeader';
+import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useScanSocket } from '@/hooks/useScanSocket';
 import { api, ApiError, getToken } from '@/lib/api';
-import { coverageClass, gateClass, scanStatusClass, type ScanRunPublic } from '@/lib/scanTypes';
+import { coverageClass, gateClass, type ScanRunPublic } from '@/lib/scanTypes';
+
+function statusVariant(status: string): 'info' | 'success' | 'destructive' | 'warning' | 'default' {
+  switch (status) {
+    case 'running':
+      return 'info';
+    case 'succeeded':
+      return 'success';
+    case 'failed':
+      return 'destructive';
+    case 'queued':
+      return 'warning';
+    default:
+      return 'default';
+  }
+}
 
 /**
- * §5.3 路由 /projects/:id/scans/:runId —— 实时扫描详情页
- *
- * 数据流:
- * - 初次进入:GET /api/scan-runs/:runId 拉取最新状态
- * - status ∈ {queued, running}:每 2s 轮询一次 + 走 useScanSocket WebSocket
- * - status 为终态:停止轮询,继续接收 WebSocket 收尾
- * - Cancel:POST /api/scan-runs/:id/cancel
- * - Replay(Phase 2):POST /api/scan-runs/:id/replay
+ * §5.3 /projects/:id/scans/:runId —— 实时扫描详情
  */
 export default function ScanPage(): React.ReactElement {
   const { id: projectId, runId } = useParams<{ id: string; runId: string }>();
@@ -46,7 +57,6 @@ export default function ScanPage(): React.ReactElement {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId]);
 
-  // status ∈ {queued, running} 时 2s 轮询
   useEffect(() => {
     if (!run) return;
     if (run.status !== 'queued' && run.status !== 'running') return;
@@ -57,14 +67,12 @@ export default function ScanPage(): React.ReactElement {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run?.status, runId]);
 
-  // 日志自动滚到底
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs.length]);
 
   async function onCancel(): Promise<void> {
-    if (!runId) return;
-    if (!confirm('Cancel this scan?')) return;
+    if (!runId || !confirm('Cancel this scan?')) return;
     setActing('cancel');
     try {
       await api.post(`/scan-runs/${runId}/cancel`);
@@ -81,7 +89,6 @@ export default function ScanPage(): React.ReactElement {
     setActing('replay');
     try {
       const fresh = await api.post<ScanRunPublic>(`/scan-runs/${runId}/replay`);
-      // 跳到新的 ScanRun
       navigate(`/projects/${projectId ?? fresh.projectId}/scans/${fresh.id}`);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : (e as Error).message);
@@ -89,7 +96,6 @@ export default function ScanPage(): React.ReactElement {
     }
   }
 
-  // §11 Q7 双轨 C —— 用最新 Skill 重扫
   async function onReplayWithLatest(): Promise<void> {
     if (!runId) return;
     setActing('replay-with-latest');
@@ -103,7 +109,6 @@ export default function ScanPage(): React.ReactElement {
   }
 
   const [fileLogs, setFileLogs] = useState<string | null>(null);
-
   const isTerminal =
     run?.status === 'succeeded' || run?.status === 'failed' || run?.status === 'canceled';
 
@@ -118,232 +123,225 @@ export default function ScanPage(): React.ReactElement {
     }
   }, [isTerminal, runId, run?.logPath]);
 
-  const percent = lastProgress?.scanRunId === runId && lastProgress ? lastProgress.percent : null;
-  const stage =
-    lastProgress?.scanRunId === runId && lastProgress ? lastProgress.currentStage : null;
+  const percent = lastProgress && lastProgress.scanRunId === runId ? lastProgress.percent : null;
+  const stage = lastProgress && lastProgress.scanRunId === runId ? lastProgress.currentStage : null;
+
+  if (loading) {
+    return (
+      <main className="container py-6">
+        <div className="space-y-4">
+          <div className="h-8 w-48 rounded bg-muted animate-pulse" />
+          <div className="h-4 w-64 rounded bg-muted animate-pulse" />
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main className="container py-8">
-      <header className="mb-6">
-        <Link
-          to={`/projects/${projectId ?? ''}`}
-          className="text-sm text-muted-foreground underline"
-        >
-          ← Project Detail
-        </Link>
+    <main className="container py-6">
+      {err && (
+        <p className="mb-4 text-sm text-destructive" role="alert">
+          {err}
+        </p>
+      )}
 
-        {loading && <p className="mt-2 text-sm text-muted-foreground">Loading...</p>}
-        {err && (
-          <p className="mt-2 text-sm text-destructive" role="alert">
-            {err}
-          </p>
-        )}
-
-        {run && (
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-bold">Scan #{run.id}</h1>
-            <span
-              className={`rounded px-2 py-0.5 text-xs ${scanStatusClass(run.status)}`}
-              data-testid="scan-status"
-            >
-              {run.status}
-            </span>
-            <Link
-              to={`/projects/${projectId}/scans/${runId}/report`}
-              className="rounded border bg-card px-3 py-1 text-xs hover:underline"
-              data-testid="view-report"
-            >
-              View Report (§5.4) →
-            </Link>
-            <Link
-              to={`/projects/${projectId}/scans/${runId}/trace`}
-              className="rounded border bg-card px-3 py-1 text-xs hover:underline"
-              data-testid="scan-view-trace"
-            >
-              View Agent Trace (§1.2/2.7) →
-            </Link>
-            <span
-              className={`rounded px-2 py-0.5 text-xs ${gateClass(run.gateDecision)}`}
-              data-testid="scan-gate"
-            >
-              gate: {run.gateDecision}
-            </span>
-            <span
-              className={`rounded px-2 py-0.5 text-xs ${coverageClass(run.apiCoverageStatus)}`}
-              data-testid="scan-api-coverage"
-            >
-              api: {run.apiCoverageStatus}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {new Date(run.queuedAt).toLocaleString()}
-              {run.startedAt !== null &&
-                ` · started ${new Date(run.startedAt).toLocaleTimeString()}`}
-              {run.durationSec !== null && ` · ${run.durationSec}s`}
-            </span>
-          </div>
-        )}
-
-        {run && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            codeVersion: <span className="font-mono">{run.codeVersionId}</span> · skillBundle:{' '}
-            <span className="font-mono">{run.skillBundleId}</span> · coverage: {run.coverageMode} ·
-            trigger: {run.triggerType} · by {run.triggeredBy}
-          </p>
-        )}
-      </header>
+      <PageHeader
+        title={run ? `扫描 #${run.id.slice(0, 8)}` : '扫描详情'}
+        breadcrumbs={[
+          { label: '项目列表', to: '/projects' },
+          { label: '项目详情', to: `/projects/${projectId ?? ''}` },
+        ]}
+        badge={run && <StatusBadge label={run.status} variant={statusVariant(run.status)} />}
+        actions={
+          run
+            ? [
+                ...(run.status === 'running' || run.status === 'queued'
+                  ? [
+                      {
+                        label: '取消扫描',
+                        variant: 'destructive' as const,
+                        onClick: () => void onCancel(),
+                        disabled: acting === 'cancel',
+                      },
+                    ]
+                  : []),
+                ...(isTerminal
+                  ? [
+                      {
+                        label: '重新扫描',
+                        variant: 'outline' as const,
+                        onClick: () => void onReplay(),
+                        disabled: acting === 'replay',
+                      },
+                      {
+                        label: '最新 Skill 重扫',
+                        variant: 'outline' as const,
+                        onClick: () => void onReplayWithLatest(),
+                        disabled: acting === 'replay-with-latest',
+                      },
+                    ]
+                  : []),
+                { label: '刷新', variant: 'outline' as const, onClick: () => void refresh() },
+              ]
+            : []
+        }
+      />
 
       {run && (
-        <section className="space-y-4">
-          {/* 进度条 */}
-          <div className="rounded-lg border bg-card p-6">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium">Progress</span>
-              <span className="text-xs text-muted-foreground" data-testid="scan-progress-text">
-                {percent !== null ? `${percent}% · ${stage ?? ''}` : 'waiting for runner...'}
+        <div className="space-y-4">
+          {/* 元信息 */}
+          <Card className="glass-card">
+            <CardContent className="flex flex-wrap gap-4 p-4 text-xs">
+              <span className="text-muted-foreground">
+                Version: <span className="font-mono">{run.codeVersionId.slice(0, 8)}...</span>
               </span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-muted">
-              <div
-                className="h-2 rounded-full bg-primary transition-[width]"
-                style={{ width: percent !== null ? `${percent}%` : '0%' }}
-                data-testid="scan-progress-bar"
-              />
-            </div>
-            {run.errorMessage !== null && (
-              <p
-                className="mt-3 rounded bg-destructive/10 p-2 text-xs text-destructive"
-                data-testid="scan-error"
-              >
-                {run.errorMessage}
-              </p>
-            )}
-          </div>
+              <span className="text-muted-foreground">
+                Skill: <span className="font-mono">{run.skillBundleId.slice(0, 8)}...</span>
+              </span>
+              <span className="text-muted-foreground">
+                Coverage:{' '}
+                <span
+                  className={`rounded px-1.5 py-0.5 text-xs ${coverageClass(run.apiCoverageStatus)}`}
+                >
+                  {run.coverageMode}
+                </span>
+              </span>
+              <span className="text-muted-foreground">
+                Gate:{' '}
+                <span className={`rounded px-1.5 py-0.5 text-xs ${gateClass(run.gateDecision)}`}>
+                  {run.gateDecision}
+                </span>
+              </span>
+              <span className="text-muted-foreground">
+                {new Date(run.queuedAt).toLocaleString()}
+                {run.startedAt && ` · started ${new Date(run.startedAt).toLocaleTimeString()}`}
+                {run.durationSec !== null && ` · ${run.durationSec}s`}
+              </span>
+            </CardContent>
+          </Card>
 
-          {/* 操作按钮 */}
+          {/* 进度条 */}
+          <Card className="glass-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Progress</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs text-muted-foreground" data-testid="scan-progress-text">
+                  {percent !== null ? `${percent}% · ${stage ?? ''}` : 'waiting for runner...'}
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-muted">
+                <div
+                  className="h-2 rounded-full bg-primary transition-all duration-500"
+                  style={{ width: percent !== null ? `${percent}%` : '0%' }}
+                  data-testid="scan-progress-bar"
+                />
+              </div>
+              {run.errorMessage && (
+                <p
+                  className="mt-3 rounded bg-destructive/10 p-2 text-xs text-destructive"
+                  data-testid="scan-error"
+                >
+                  {run.errorMessage}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 实时日志 */}
+          <Card className="glass-card">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm">实时日志 (最近 100 条)</CardTitle>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <span
+                      className={`inline-block h-2 w-2 rounded-full ${wsStatus === 'connected' ? 'bg-success' : 'bg-destructive'}`}
+                    />
+                    ws: {wsStatus}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={poke}
+                    disabled={wsStatus !== 'connected'}
+                    data-testid="scan-poke"
+                  >
+                    测试连接
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <pre
+                className="h-64 overflow-auto rounded bg-[#0d1117] p-3 font-mono text-xs text-green-400"
+                data-testid="scan-log"
+              >
+                {fileLogs && logs.length === 0
+                  ? fileLogs
+                  : logs.length === 0
+                    ? `[INFO] waiting for scan:log events...\n[INFO] ws status: ${wsStatus}\n`
+                    : logs
+                        .map(
+                          (l) =>
+                            `[${l.level.toUpperCase()}] ${new Date(l.ts).toISOString()} ${l.message}`,
+                        )
+                        .join('\n')}
+                <div ref={logEndRef} />
+              </pre>
+            </CardContent>
+          </Card>
+
+          {/* Quality Gates */}
+          <Card className="glass-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Quality Gates (§2.8)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-[160px_1fr] gap-2 text-xs">
+                <dt className="text-muted-foreground">audit surface</dt>
+                <dd>{run.auditSurfaceStatus}</dd>
+                <dt className="text-muted-foreground">api coverage</dt>
+                <dd>{run.apiCoverageStatus}</dd>
+                <dt className="text-muted-foreground">pipeline execution</dt>
+                <dd>{run.pipelineExecution}</dd>
+                <dt className="text-muted-foreground">controller coverage</dt>
+                <dd>
+                  {run.controllerCoveragePercent !== null
+                    ? `${(run.controllerCoveragePercent / 100).toFixed(2)}%`
+                    : '-'}
+                </dd>
+                <dt className="text-muted-foreground">auth coverage</dt>
+                <dd>
+                  {run.authCoveragePercent !== null
+                    ? `${(run.authCoveragePercent / 100).toFixed(2)}%`
+                    : '-'}
+                </dd>
+              </dl>
+            </CardContent>
+          </Card>
+
+          {/* 快捷链接 */}
           <div className="flex flex-wrap gap-2">
-            {run.status === 'running' || run.status === 'queued' ? (
-              <Button
-                variant="destructive"
-                disabled={acting === 'cancel'}
-                onClick={() => {
-                  void onCancel();
-                }}
-                data-testid="scan-cancel"
-              >
-                {acting === 'cancel' ? 'Canceling...' : 'Cancel Scan'}
-              </Button>
-            ) : null}
-            {isTerminal && (
-              <Button
-                variant="outline"
-                disabled={acting === 'replay'}
-                onClick={() => {
-                  void onReplay();
-                }}
-                data-testid="scan-replay"
-              >
-                {acting === 'replay' ? 'Replaying...' : 'Re-run (Replay)'}
-              </Button>
-            )}
-            {isTerminal && (
-              <Button
-                variant="outline"
-                disabled={acting === 'replay-with-latest'}
-                onClick={() => {
-                  void onReplayWithLatest();
-                }}
-                data-testid="scan-replay-with-latest"
-              >
-                {acting === 'replay-with-latest' ? 'Replaying...' : 'Replay (Latest Skill)'}
-              </Button>
-            )}
             <Button
               variant="outline"
-              onClick={() => {
-                void refresh();
-              }}
-              data-testid="scan-refresh"
+              size="sm"
+              onClick={() => navigate(`/projects/${projectId}/scans/${runId}/report`)}
+              data-testid="view-report"
             >
-              Refresh
+              View Report →
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/projects/${projectId}/scans/${runId}/trace`)}
+              data-testid="scan-view-trace"
+            >
+              View Agent Trace →
             </Button>
           </div>
-
-          {/* 日志流 */}
-          <div className="rounded-lg border bg-card p-6">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium">Real-time Log (最近 100 条)</span>
-              <span className="text-xs text-muted-foreground" data-testid="ws-status">
-                ws: {wsStatus}
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={poke}
-                disabled={wsStatus !== 'connected'}
-                data-testid="scan-poke"
-              >
-                测试连接
-              </Button>
-            </div>
-            <pre className="h-64 overflow-auto rounded bg-muted p-3 text-xs" data-testid="scan-log">
-              {fileLogs && logs.length === 0
-                ? fileLogs
-                : logs.length === 0
-                  ? '[INFO] waiting for scan:log events...\n[INFO] ws status: ' + wsStatus + '\n'
-                  : logs
-                      .map(
-                        (l) =>
-                          `[${l.level.toUpperCase()}] ${new Date(l.ts).toISOString()} ${l.message}`,
-                      )
-                      .join('\n')}
-              <div ref={logEndRef} />
-            </pre>
-          </div>
-
-          {/* Phase 2 占位 —— 报告 */}
-          <div className="rounded-lg border bg-card p-6">
-            <h2 className="mb-2 text-sm font-medium">Report (Phase 2)</h2>
-            <p className="text-xs text-muted-foreground">
-              reportPath:{' '}
-              <span className="font-mono">
-                {run.reportPath !== null ? run.reportPath : '(pending)'}
-              </span>{' '}
-              · logPath:{' '}
-              <span className="font-mono">{run.logPath !== null ? run.logPath : '(pending)'}</span>{' '}
-              · outputRoot: <span className="font-mono">{run.outputRoot}</span>
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              报告页占位;Phase 2 接 GET /api/scan-runs/:id/report 下载。
-            </p>
-          </div>
-
-          {/* Quality Gates 概览(§2.8) */}
-          <div className="rounded-lg border bg-card p-6">
-            <h2 className="mb-2 text-sm font-medium">Quality Gates (§2.8)</h2>
-            <dl className="grid grid-cols-[160px_1fr] gap-2 text-xs">
-              <dt className="text-muted-foreground">audit surface</dt>
-              <dd>{run.auditSurfaceStatus}</dd>
-              <dt className="text-muted-foreground">api coverage</dt>
-              <dd>{run.apiCoverageStatus}</dd>
-              <dt className="text-muted-foreground">pipeline execution</dt>
-              <dd>{run.pipelineExecution}</dd>
-              <dt className="text-muted-foreground">gate decision</dt>
-              <dd>{run.gateDecision}</dd>
-              <dt className="text-muted-foreground">controller coverage</dt>
-              <dd>
-                {run.controllerCoveragePercent !== null
-                  ? `${(run.controllerCoveragePercent / 100).toFixed(2)}%`
-                  : '-'}
-              </dd>
-              <dt className="text-muted-foreground">auth coverage</dt>
-              <dd>
-                {run.authCoveragePercent !== null
-                  ? `${(run.authCoveragePercent / 100).toFixed(2)}%`
-                  : '-'}
-              </dd>
-            </dl>
-          </div>
-        </section>
+        </div>
       )}
     </main>
   );

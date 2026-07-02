@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { Toaster } from 'sonner';
 
 import App from './App';
+
 import { ThemeProvider } from '@/components/ThemeProvider';
 import './index.css';
 

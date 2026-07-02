@@ -8,6 +8,6 @@ describe('App (路由出口)', () => {
     render(<App />);
     const headings = screen.getAllByRole('heading', { level: 1 });
     expect(headings.length).toBeGreaterThan(0);
-    expect(headings[0]?.textContent).toContain('.NET 代码安全审计平台');
+    expect(headings[0]?.textContent).toContain('总览');
   });
 });

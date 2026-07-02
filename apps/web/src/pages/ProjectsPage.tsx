@@ -1,7 +1,22 @@
+import { Plus, RefreshCw, Search } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 
+import { EmptyState } from '@/components/EmptyState';
+import { PageHeader } from '@/components/PageHeader';
+import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { api, ApiError } from '@/lib/api';
 
 interface Project {
@@ -16,18 +31,20 @@ interface Project {
 }
 
 /**
- * §9 路由 /projects —— 项目列表 + 新建
+ * §9 路由 /projects —— 项目卡片网格 + 搜索 + 新建 Dialog
  */
 export default function ProjectsPage(): React.ReactElement {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [showNew, setShowNew] = useState(false);
+  const [q, setQ] = useState('');
+
+  // 新建项目
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<'public' | 'private'>('private');
   const [creating, setCreating] = useState(false);
-  const [q, setQ] = useState('');
 
   async function refresh(): Promise<void> {
     setLoading(true);
@@ -58,7 +75,7 @@ export default function ProjectsPage(): React.ReactElement {
         description: description.trim() || undefined,
         visibility,
       });
-      setShowNew(false);
+      setDialogOpen(false);
       setName('');
       setDescription('');
       setProjects((prev) => [created, ...prev]);
@@ -80,151 +97,191 @@ export default function ProjectsPage(): React.ReactElement {
   }
 
   return (
-    <main className="container py-8">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Projects</h1>
-          <p className="text-sm text-muted-foreground">Section 5.1 - project management</p>
-        </div>
-        <div className="flex gap-2">
-          <input
+    <main className="container py-6">
+      <PageHeader
+        title="项目列表"
+        description="管理所有代码审计项目"
+        actions={[
+          {
+            label: '新建项目',
+            icon: Plus,
+            onClick: () => setDialogOpen(true),
+          },
+        ]}
+      />
+
+      {err && (
+        <p className="mb-4 text-sm text-destructive" role="alert">
+          {err}
+        </p>
+      )}
+
+      {/* 搜索栏 */}
+      <div className="mb-6 flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
             type="search"
-            placeholder="Search..."
+            placeholder="搜索项目..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') void refresh();
             }}
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+            className="pl-9"
           />
-          <Button variant="outline" onClick={() => void refresh()} data-testid="refresh">
-            Refresh
-          </Button>
-          <Button onClick={() => setShowNew((v) => !v)} data-testid="new-project">
-            + New Project
-          </Button>
         </div>
-      </header>
+        <Button variant="outline" onClick={() => void refresh()} data-testid="refresh">
+          <RefreshCw className="mr-1 h-4 w-4" />
+          Refresh
+        </Button>
+      </div>
 
-      {err && (
-        <p className="mb-3 text-sm text-destructive" role="alert">
-          {err}
-        </p>
+      {/* 项目列表 */}
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="glass-card">
+              <CardContent className="p-5">
+                <div className="h-5 w-2/3 rounded bg-muted animate-pulse" />
+                <div className="mt-2 h-4 w-full rounded bg-muted animate-pulse" />
+                <div className="mt-2 h-3 w-1/3 rounded bg-muted animate-pulse" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : projects.length === 0 ? (
+        <EmptyState
+          title={q.trim() ? '未找到匹配项目' : '暂无项目'}
+          description={q.trim() ? '尝试其他搜索词' : '创建你的第一个代码审计项目'}
+          action={
+            q.trim()
+              ? {
+                  label: '清除搜索',
+                  onClick: () => {
+                    setQ('');
+                    void refresh();
+                  },
+                }
+              : { label: '新建项目', onClick: () => setDialogOpen(true) }
+          }
+        />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="project-list">
+          {projects.map((p) => (
+            <Link key={p.id} to={`/projects/${p.id}`} data-testid="project-card">
+              <Card className="glass-card h-full transition-all hover:shadow-md hover:border-primary/30">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <CardTitle className="text-base" data-testid="project-name">
+                      {p.name}
+                    </CardTitle>
+                    <StatusBadge
+                      label={p.status}
+                      variant={p.status === 'active' ? 'success' : 'default'}
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="pb-4">
+                  <p className="line-clamp-2 text-sm text-muted-foreground">
+                    {p.description ?? '(无描述)'}
+                  </p>
+                  <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{p.visibility}</span>
+                    <span>{new Date(p.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  {p.status === 'active' && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="mt-2 h-7 text-xs"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        void onArchive(p);
+                      }}
+                    >
+                      Archive
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
       )}
 
-      {showNew && (
-        <form
-          onSubmit={(e) => {
-            void onCreate(e);
-          }}
-          className="mb-4 rounded-lg border bg-card p-4"
-        >
-          <h2 className="mb-3 text-lg font-semibold">New Project</h2>
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">Name *</span>
-              <input
+      {/* 新建项目 Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="glass-popover">
+          <DialogHeader>
+            <DialogTitle>新建项目</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              void onCreate(e);
+            }}
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="proj-name" className="text-sm text-muted-foreground">
+                项目名称 *
+              </label>
+              <Input
+                id="proj-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
                 maxLength={128}
-                className="rounded-md border border-input bg-background px-3 py-2"
               />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">Visibility</span>
-              <select
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="proj-vis" className="text-sm text-muted-foreground">
+                可见性
+              </label>
+              <Select
                 value={visibility}
-                onChange={(e) => setVisibility(e.target.value as 'public' | 'private')}
-                className="rounded-md border border-input bg-background px-3 py-2"
+                onValueChange={(v) => setVisibility(v as 'public' | 'private')}
               >
-                <option value="private">private</option>
-                <option value="public">public</option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm md:col-span-2">
-              <span className="text-muted-foreground">Description</span>
-              <textarea
+                <SelectTrigger id="proj-vis">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="private">private</SelectItem>
+                  <SelectItem value="public">public</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="proj-desc" className="text-sm text-muted-foreground">
+                描述
+              </label>
+              <Textarea
+                id="proj-desc"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
-                className="rounded-md border border-input bg-background px-3 py-2"
               />
-            </label>
-          </div>
-          <div className="mt-3 flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setShowNew(false)}
-              disabled={creating}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={creating || !name.trim()} data-testid="create-project">
-              {creating ? 'Creating...' : 'Create'}
-            </Button>
-          </div>
-        </form>
-      )}
-
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Loading...</p>
-      ) : projects.length === 0 ? (
-        <p
-          className="rounded-lg border bg-card p-6 text-sm text-muted-foreground"
-          data-testid="empty"
-        >
-          No projects yet. Click "+ New Project" to create one.
-        </p>
-      ) : (
-        <ul className="grid gap-3 md:grid-cols-2 lg:grid-cols-3" data-testid="project-list">
-          {projects.map((p) => (
-            <li
-              key={p.id}
-              className="rounded-lg border bg-card p-4 shadow-sm"
-              data-testid="project-card"
-            >
-              <div className="flex items-start justify-between">
-                <Link
-                  to={`/projects/${p.id}`}
-                  className="font-semibold hover:underline"
-                  data-testid="project-name"
-                >
-                  {p.name}
-                </Link>
-                <span
-                  className={`rounded px-2 py-0.5 text-xs ${
-                    p.status === 'active'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
-                  }`}
-                >
-                  {p.status}
-                </span>
-              </div>
-              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                {p.description ?? '(no description)'}
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {p.visibility} - {new Date(p.createdAt).toLocaleString()}
-              </p>
-              {p.status === 'active' && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="mt-2"
-                  onClick={() => {
-                    void onArchive(p);
-                  }}
-                >
-                  Archive
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setDialogOpen(false)}
+                disabled={creating}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={creating || !name.trim()}
+                data-testid="create-project"
+              >
+                {creating ? 'Creating...' : 'Create'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
