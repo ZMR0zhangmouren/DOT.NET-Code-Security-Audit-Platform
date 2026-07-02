@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 interface TopBarProps {
   onToggleSidebar: () => void;
+  isMobile?: boolean;
 }
 
 export function TopBar({ onToggleSidebar }: TopBarProps): React.ReactElement {

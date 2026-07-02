@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 
 interface SidebarProps {
   collapsed: boolean;
+  overlay?: boolean;
+  onCloseOverlay?: () => void;
 }
 
 interface NavItem {
@@ -22,9 +24,11 @@ interface NavItem {
 function NavItemLink({
   item,
   collapsed,
+  onClick,
 }: {
   item: NavItem;
   collapsed: boolean;
+  onClick?: () => void;
 }): React.ReactElement {
   const { user } = useAuth();
 
@@ -34,6 +38,7 @@ function NavItemLink({
     <NavLink
       to={item.to}
       end={item.end}
+      onClick={onClick}
       className={({ isActive }) =>
         cn(
           'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
@@ -61,7 +66,7 @@ function NavItemLink({
   return <div key={item.to}>{link}</div>;
 }
 
-export function Sidebar({ collapsed }: SidebarProps): React.ReactElement {
+export function Sidebar({ collapsed, overlay, onCloseOverlay }: SidebarProps): React.ReactElement {
   const { user } = useAuth();
   const location = useLocation();
 
@@ -93,59 +98,103 @@ export function Sidebar({ collapsed }: SidebarProps): React.ReactElement {
     { to: '/me', label: '设置', icon: <Settings className="h-5 w-5" /> },
   ];
 
+  const handleNavClick = overlay ? onCloseOverlay : undefined;
+
+  const sidebarContent = (
+    <>
+      <ScrollArea className="flex-1 px-3 py-4">
+        <nav className="flex flex-col gap-1">
+          {mainItems.map((item) => (
+            <NavItemLink
+              key={item.to}
+              item={item}
+              collapsed={collapsed && !overlay}
+              onClick={handleNavClick}
+            />
+          ))}
+
+          {isProjectPage && projectId && (
+            <NavLink
+              to={`/projects/${projectId}`}
+              onClick={handleNavClick}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                  isActive
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'text-foreground/70 hover:bg-muted hover:text-foreground',
+                  collapsed && !overlay && 'justify-center px-2',
+                )
+              }
+            >
+              <FolderOpen className="h-5 w-5" />
+              {!(collapsed && !overlay) && <span className="truncate">当前项目</span>}
+            </NavLink>
+          )}
+        </nav>
+
+        {user?.role === 'admin' && (
+          <>
+            <Separator className="my-3" />
+            <nav className="flex flex-col gap-1">
+              {adminItems.map((item) => (
+                <NavItemLink
+                  key={item.to}
+                  item={item}
+                  collapsed={collapsed && !overlay}
+                  onClick={handleNavClick}
+                />
+              ))}
+            </nav>
+          </>
+        )}
+      </ScrollArea>
+
+      <div className="px-3 py-3">
+        <Separator className="mb-3" />
+        <nav className="flex flex-col gap-1">
+          {bottomItems.map((item) => (
+            <NavItemLink
+              key={item.to}
+              item={item}
+              collapsed={collapsed && !overlay}
+              onClick={handleNavClick}
+            />
+          ))}
+        </nav>
+      </div>
+    </>
+  );
+
+  // Overlay mode: backdrop + sliding panel
+  if (overlay) {
+    return (
+      <>
+        {/* Backdrop */}
+        <div
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          onClick={onCloseOverlay}
+          aria-hidden="true"
+        />
+        {/* Panel */}
+        <aside className="fixed left-0 top-0 bottom-0 z-50 flex w-56 flex-col glass-surface animate-in slide-in-from-left duration-200">
+          {sidebarContent}
+        </aside>
+      </>
+    );
+  }
+
+  // Normal mode
   return (
     <TooltipProvider delayDuration={300}>
       <aside
         className={cn(
-          'fixed left-0 top-14 bottom-0 z-40 flex flex-col glass-surface transition-[width] duration-300',
+          'fixed left-0 top-14 bottom-0 z-40 flex-col glass-surface transition-[width] duration-300',
+          'hidden md:flex',
           collapsed ? 'w-16' : 'w-56',
         )}
       >
-        <ScrollArea className="flex-1 px-3 py-4">
-          <nav className="flex flex-col gap-1">
-            {mainItems.map((item) => (
-              <NavItemLink key={item.to} item={item} collapsed={collapsed} />
-            ))}
-
-            {isProjectPage && projectId && (
-              <NavLink
-                to={`/projects/${projectId}`}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-                    isActive
-                      ? 'bg-primary/10 text-primary font-medium'
-                      : 'text-foreground/70 hover:bg-muted hover:text-foreground',
-                    collapsed && 'justify-center px-2',
-                  )
-                }
-              >
-                <FolderOpen className="h-5 w-5" />
-                {!collapsed && <span className="truncate">当前项目</span>}
-              </NavLink>
-            )}
-          </nav>
-
-          {user?.role === 'admin' && (
-            <>
-              <Separator className="my-3" />
-              <nav className="flex flex-col gap-1">
-                {adminItems.map((item) => (
-                  <NavItemLink key={item.to} item={item} collapsed={collapsed} />
-                ))}
-              </nav>
-            </>
-          )}
-        </ScrollArea>
-
-        <div className="px-3 py-3">
-          <Separator className="mb-3" />
-          <nav className="flex flex-col gap-1">
-            {bottomItems.map((item) => (
-              <NavItemLink key={item.to} item={item} collapsed={collapsed} />
-            ))}
-          </nav>
-        </div>
+        {sidebarContent}
       </aside>
     </TooltipProvider>
   );
