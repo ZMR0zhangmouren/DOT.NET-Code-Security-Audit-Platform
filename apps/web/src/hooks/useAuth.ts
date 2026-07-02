@@ -69,6 +69,12 @@ export function useAuth(): {
       setToken(res.accessToken);
       setCurrentUser(res.user);
       setUser(res.user);
+      // 同时存 localStorage 供 AuthGuard 初始检查
+      try {
+        localStorage.setItem('user', JSON.stringify(res.user));
+      } catch {
+        /* ignore */
+      }
       navigate('/');
     },
     [navigate],
@@ -83,6 +89,11 @@ export function useAuth(): {
     }
     clearAuth();
     setUser(null);
+    try {
+      localStorage.removeItem('user');
+    } catch {
+      /* ignore */
+    }
     navigate('/login');
   }, [navigate]);
 
