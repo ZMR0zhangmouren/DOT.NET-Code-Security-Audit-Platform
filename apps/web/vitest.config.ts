@@ -12,6 +12,7 @@ export default defineConfig({
     name: 'web',
     include: ['**/*.spec.{ts,tsx}'],
     environment: 'jsdom',
+    setupFiles: ['./src/test-setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary', 'html'],
