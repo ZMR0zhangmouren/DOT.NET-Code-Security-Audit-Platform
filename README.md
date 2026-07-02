@@ -61,11 +61,9 @@ pnpm dev
 
 ## 📸 关键页面预览
 
-<p align="center">
-  <img src="./docs/screenshots/demo.gif" alt="平台功能演示" width="90%">
-  <br>
-  <sup>登录 → Dashboard → 项目详情 → 扫描 → 报告，全流程靛蓝主题 + 毛玻璃 + Light/Dark 切换</sup>
-</p>
+![平台功能演示](./docs/screenshots/demo.gif)
+
+> 登录 → Dashboard → 项目详情 → 扫描 → 报告，全流程靛蓝主题 + 毛玻璃 + Light/Dark 切换
 
 > 完整设计规范见 [`docs/superpowers/specs/2026-07-02-frontend-redesign-design.md`](./docs/superpowers/specs/2026-07-02-frontend-redesign-design.md)
 

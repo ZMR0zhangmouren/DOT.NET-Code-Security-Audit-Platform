@@ -62,11 +62,9 @@ Open <http://127.0.0.1:5180> in your browser → log in with `admin` / `admin123
 
 ## 📸 Key Screenshots
 
-<p align="center">
-  <img src="./docs/screenshots/demo.gif" alt="Platform Demo" width="90%">
-  <br>
-  <sup>Login → Dashboard → Project Detail → Scan → Report — full workflow with Indigo theme + Glassmorphism + Light/Dark toggle</sup>
-</p>
+![Platform Demo](./docs/screenshots/demo.gif)
+
+> Login → Dashboard → Project Detail → Scan → Report — full workflow with Indigo theme + Glassmorphism + Light/Dark toggle
 
 > Full design spec: [`docs/superpowers/specs/2026-07-02-frontend-redesign-design.md`](./docs/superpowers/specs/2026-07-02-frontend-redesign-design.md)
 
