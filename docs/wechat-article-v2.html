@@ -1,0 +1,247 @@
+<!--
+  📱 微信公众号文章 HTML · .NET 代码安全审计平台 — UI 重设计更新
+  适配:微信公众号图文编辑器粘贴(内联 style, 无 script)
+  使用:复制 <body> 内全部内容 → 微信图文编辑器 → 粘贴
+-->
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>.NET 代码安全审计平台 —— v2.0 靛蓝主题 UI 重设计</title>
+</head>
+<body style="margin:0;padding:0;background:#0a0a14;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','PingFang SC','Microsoft YaHei',sans-serif;">
+
+<!-- ====== 1. HERO ====== -->
+<section style="padding:56px 20px 48px;text-align:center;background:linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4338ca 100%);position:relative;overflow:hidden;">
+  <div style="position:absolute;top:-80px;right:-80px;width:300px;height:300px;border-radius:50%;background:rgba(99,102,241,0.15);"></div>
+  <div style="position:absolute;bottom:-60px;left:-60px;width:240px;height:240px;border-radius:50%;background:rgba(139,92,246,0.1);"></div>
+  <h1 style="position:relative;color:#fff;font-size:28px;font-weight:800;margin:0 0 16px;letter-spacing:1px;">.NET 代码安全审计平台 · v2.0</h1>
+  <p style="position:relative;color:rgba(255,255,255,0.72);font-size:16px;margin:0 0 8px;line-height:1.8;">靛蓝主题 · 毛玻璃质感 · Light/Dark 双模式</p>
+  <p style="position:relative;color:rgba(255,255,255,0.5);font-size:13px;margin:0;">2026 年 7 月 2 日更新</p>
+</section>
+
+<!-- ====== 2. 概述 ====== -->
+<section style="background:#0f0f1a;padding:32px 20px;">
+  <div style="max-width:640px;margin:0 auto;">
+    <p style="color:rgba(255,255,255,0.85);font-size:15px;line-height:2;margin:0;">
+      过去 48 小时，我们对 <strong style="color:#818cf8;">.NET 代码安全审计平台</strong> 的前端进行了一次彻底的视觉升级。告别 shadcn/ui 默认的灰黑色调，换上了专业企业级的 <strong style="color:#818cf8;">靛蓝主题</strong>，搭配 <strong style="color:#a78bfa;">毛玻璃质感</strong>、<strong style="color:#a78bfa;">明暗双模式</strong> 和 <strong style="color:#a78bfa;">响应式三断点布局</strong>。
+    </p>
+  </div>
+</section>
+
+<!-- ====== 3. 色彩体系 ====== -->
+<section style="background:#1a1a2e;padding:36px 20px;">
+  <div style="max-width:640px;margin:0 auto;">
+    <h2 style="color:#fff;font-size:20px;font-weight:700;margin:0 0 24px;text-align:center;">🎨 设计体系</h2>
+
+    <table style="width:100%;border-collapse:collapse;margin:0 0 20px;">
+      <tr>
+        <td style="padding:16px;background:rgba(99,102,241,0.12);border-radius:8px 8px 0 0;text-align:center;width:50%;">
+          <p style="color:rgba(255,255,255,0.5);font-size:12px;margin:0 0 6px;">主色调</p>
+          <p style="color:#818cf8;font-size:15px;font-weight:700;margin:0;">靛蓝 Indigo</p>
+          <p style="color:rgba(255,255,255,0.4);font-size:11px;margin:4px 0 0;font-family:monospace;">243 75% 59%</p>
+        </td>
+        <td style="padding:16px;background:rgba(139,92,246,0.1);border-radius:8px 8px 0 0;text-align:center;width:50%;">
+          <p style="color:rgba(255,255,255,0.5);font-size:12px;margin:0 0 6px;">字体</p>
+          <p style="color:#a78bfa;font-size:15px;font-weight:700;margin:0;">Inter + JetBrains Mono</p>
+          <p style="color:rgba(255,255,255,0.4);font-size:11px;margin:4px 0 0;font-family:monospace;">正文 / 代码</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:16px;background:rgba(99,102,241,0.08);text-align:center;">
+          <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:hsla(0,72%,51%,0.8);margin:0 3px;vertical-align:middle;"></span>
+          <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:hsla(25,95%,53%,0.8);margin:0 3px;vertical-align:middle;"></span>
+          <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:hsla(45,93%,47%,0.8);margin:0 3px;vertical-align:middle;"></span>
+          <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:hsla(200,80%,50%,0.8);margin:0 3px;vertical-align:middle;"></span>
+          <p style="color:rgba(255,255,255,0.4);font-size:11px;margin:8px 0 0;">语义色 · Severity</p>
+        </td>
+        <td style="padding:16px;background:rgba(139,92,246,0.06);text-align:center;">
+          <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:hsla(142,72%,40%,0.8);margin:0 3px;vertical-align:middle;"></span>
+          <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:hsla(38,92%,50%,0.8);margin:0 3px;vertical-align:middle;"></span>
+          <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:hsla(0,72%,51%,0.8);margin:0 3px;vertical-align:middle;"></span>
+          <p style="color:rgba(255,255,255,0.4);font-size:11px;margin:8px 0 0;">语义色 · Status</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- ====== 4. 毛玻璃 + 布局 ====== -->
+<section style="background:#0f0f1a;padding:36px 20px;">
+  <div style="max-width:640px;margin:0 auto;">
+    <h2 style="color:#fff;font-size:20px;font-weight:700;margin:0 0 24px;text-align:center;">✨ 毛玻璃 + 三区布局</h2>
+
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:12px;padding:24px;margin:0 0 16px;">
+      <p style="color:#fff;font-size:15px;font-weight:600;margin:0 0 12px;">三档毛玻璃（Glassmorphism）</p>
+      <table style="width:100%;">
+        <tr style="color:rgba(255,255,255,0.55);font-size:13px;">
+          <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.06);"><code style="color:#a78bfa;font-size:12px;">glass-surface</code></td>
+          <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.06);">blur 16px</td>
+          <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.06);">侧边栏 / Header</td>
+        </tr>
+        <tr style="color:rgba(255,255,255,0.55);font-size:13px;">
+          <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.06);"><code style="color:#a78bfa;font-size:12px;">glass-card</code></td>
+          <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.06);">blur 10px</td>
+          <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.06);">内容卡片</td>
+        </tr>
+        <tr style="color:rgba(255,255,255,0.55);font-size:13px;">
+          <td style="padding:6px 8px;"><code style="color:#a78bfa;font-size:12px;">glass-popover</code></td>
+          <td style="padding:6px 8px;">blur 8px</td>
+          <td style="padding:6px 8px;">弹窗 / 下拉</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15);border-radius:12px;padding:24px;">
+      <p style="color:#fff;font-size:15px;font-weight:600;margin:0 0 12px;">响应式三断点布局</p>
+      <table style="width:100%;">
+        <tr style="color:rgba(255,255,255,0.55);font-size:13px;">
+          <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.06);">🖥️ Desktop</td>
+          <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.06);">≥ 1024px</td>
+          <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.06);">完整侧边栏 可折叠</td>
+        </tr>
+        <tr style="color:rgba(255,255,255,0.55);font-size:13px;">
+          <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.06);">💻 Tablet</td>
+          <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.06);">768-1023px</td>
+          <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.06);">图标模式 自动折叠</td>
+        </tr>
+        <tr style="color:rgba(255,255,255,0.55);font-size:13px;">
+          <td style="padding:6px 8px;">📱 Mobile</td>
+          <td style="padding:6px 8px;">&lt; 768px</td>
+          <td style="padding:6px 8px;">Overlay 抽屉 + 遮罩</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 5. 组件体系 ====== -->
+<section style="background:#1a1a2e;padding:36px 20px;">
+  <div style="max-width:640px;margin:0 auto;">
+    <h2 style="color:#fff;font-size:20px;font-weight:700;margin:0 0 24px;text-align:center;">🧩 组件体系</h2>
+
+    <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:0 0 20px;">
+      <span style="background:rgba(99,102,241,0.15);color:#a5b4fc;padding:6px 14px;border-radius:6px;font-size:13px;border:1px solid rgba(99,102,241,0.25);">SeverityBadge</span>
+      <span style="background:rgba(99,102,241,0.15);color:#a5b4fc;padding:6px 14px;border-radius:6px;font-size:13px;border:1px solid rgba(99,102,241,0.25);">StatusBadge</span>
+      <span style="background:rgba(99,102,241,0.15);color:#a5b4fc;padding:6px 14px;border-radius:6px;font-size:13px;border:1px solid rgba(99,102,241,0.25);">StatCard</span>
+      <span style="background:rgba(99,102,241,0.15);color:#a5b4fc;padding:6px 14px;border-radius:6px;font-size:13px;border:1px solid rgba(99,102,241,0.25);">PageHeader</span>
+      <span style="background:rgba(99,102,241,0.15);color:#a5b4fc;padding:6px 14px;border-radius:6px;font-size:13px;border:1px solid rgba(99,102,241,0.25);">EmptyState</span>
+      <span style="background:rgba(99,102,241,0.15);color:#a5b4fc;padding:6px 14px;border-radius:6px;font-size:13px;border:1px solid rgba(99,102,241,0.25);">ThemeToggle</span>
+      <span style="background:rgba(99,102,241,0.15);color:#a5b4fc;padding:6px 14px;border-radius:6px;font-size:13px;border:1px solid rgba(99,102,241,0.25);">TopBar</span>
+      <span style="background:rgba(99,102,241,0.15);color:#a5b4fc;padding:6px 14px;border-radius:6px;font-size:13px;border:1px solid rgba(99,102,241,0.25);">Sidebar</span>
+      <span style="background:rgba(99,102,241,0.15);color:#a5b4fc;padding:6px 14px;border-radius:6px;font-size:13px;border:1px solid rgba(99,102,241,0.25);">Glass Cards</span>
+    </div>
+    <p style="color:rgba(255,255,255,0.45);font-size:12px;text-align:center;margin:0;">9 个自研业务组件 + 15 个 shadcn/ui 组件</p>
+  </div>
+</section>
+
+<!-- ====== 6. 页面全景 ====== -->
+<section style="background:#0f0f1a;padding:36px 20px;">
+  <div style="max-width:640px;margin:0 auto;">
+    <h2 style="color:#fff;font-size:20px;font-weight:700;margin:0 0 24px;text-align:center;">📄 页面全景（13 → 17 页）</h2>
+
+    <table style="width:100%;border-collapse:collapse;">
+      <tr style="background:rgba(99,102,241,0.1);">
+        <td style="padding:10px 14px;color:#818cf8;font-size:13px;font-weight:600;border-radius:6px 0 0 0;">🔄 重构页面</td>
+        <td style="padding:10px 14px;color:#a78bfa;font-size:13px;font-weight:600;border-radius:0 6px 0 0;">🆕 新增页面</td>
+      </tr>
+      <tr style="color:rgba(255,255,255,0.7);font-size:13px;">
+        <td style="padding:8px 14px;border-bottom:1px solid rgba(255,255,255,0.05);">登录页 · Dashboard · 项目列表</td>
+        <td style="padding:8px 14px;border-bottom:1px solid rgba(255,255,255,0.05);">漏洞实例列表（/scans/.../:vulns）</td>
+      </tr>
+      <tr style="color:rgba(255,255,255,0.7);font-size:13px;">
+        <td style="padding:8px 14px;border-bottom:1px solid rgba(255,255,255,0.05);">项目详情 · 扫描详情 · 报告页</td>
+        <td style="padding:8px 14px;border-bottom:1px solid rgba(255,255,255,0.05);">漏洞实例详情（/scans/.../:vulnId）</td>
+      </tr>
+      <tr style="color:rgba(255,255,255,0.7);font-size:13px;">
+        <td style="padding:8px 14px;border-bottom:1px solid rgba(255,255,255,0.05);">Agent Trace · Scan Diff</td>
+        <td style="padding:8px 14px;border-bottom:1px solid rgba(255,255,255,0.05);">跨版本漏洞对比（/vuln-library/compare）</td>
+      </tr>
+      <tr style="color:rgba(255,255,255,0.7);font-size:13px;">
+        <td style="padding:8px 14px;border-bottom:1px solid rgba(255,255,255,0.05);">漏洞库 · 设置 · 用户管理</td>
+        <td style="padding:8px 14px;border-bottom:1px solid rgba(255,255,255,0.05);">审计日志（/admin/audit-log）</td>
+      </tr>
+      <tr style="color:rgba(255,255,255,0.7);font-size:13px;">
+        <td style="padding:8px 14px;border-bottom:1px solid rgba(255,255,255,0.05);">系统配置 · VulnLibrary 详情</td>
+        <td style="padding:8px 14px;border-bottom:1px solid rgba(255,255,255,0.05);">React.lazy 代码分割</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- ====== 7. 安全加固 ====== -->
+<section style="background:#1a1a2e;padding:36px 20px;">
+  <div style="max-width:640px;margin:0 auto;">
+    <h2 style="color:#fff;font-size:20px;font-weight:700;margin:0 0 24px;text-align:center;">🔒 安全加固 + 性能优化</h2>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:16px;">
+        <p style="color:#4ade80;font-size:14px;font-weight:600;margin:0 0 8px;">HttpOnly Cookie</p>
+        <p style="color:rgba(255,255,255,0.55);font-size:12px;line-height:1.7;margin:0;">accessToken 存内存<br>refreshToken 走 Cookie<br>静默刷新 + 轮换 + 吊销</p>
+      </div>
+      <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:16px;">
+        <p style="color:#818cf8;font-size:14px;font-weight:600;margin:0 0 8px;">代码分割</p>
+        <p style="color:rgba(255,255,255,0.55);font-size:12px;line-height:1.7;margin:0;">React.lazy 17 页面<br>Suspense 骨架屏<br>ErrorBoundary 容错</p>
+      </div>
+      <div style="background:rgba(250,204,21,0.08);border:1px solid rgba(250,204,21,0.2);border-radius:10px;padding:16px;">
+        <p style="color:#facc15;font-size:14px;font-weight:600;margin:0 0 8px;">AuthGuard</p>
+        <p style="color:rgba(255,255,255,0.55);font-size:12px;line-height:1.7;margin:0;">未登录自动跳转<br>localStorage 凭据检测<br>双重校验机制</p>
+      </div>
+      <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:16px;">
+        <p style="color:#f87171;font-size:14px;font-weight:600;margin:0 0 8px;">Bug 修复</p>
+        <p style="color:rgba(255,255,255,0.55);font-size:12px;line-height:1.7;margin:0;">lazy() 不可在 render 内调用<br>路由切换失效根因<br>登录守卫缺失</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 8. 质量数据 ====== -->
+<section style="background:#0f0f1a;padding:36px 20px;">
+  <div style="max-width:640px;margin:0 auto;">
+    <h2 style="color:#fff;font-size:20px;font-weight:700;margin:0 0 24px;text-align:center;">📊 质量门禁</h2>
+
+    <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:16px;">
+      <div style="flex:1;min-width:120px;background:rgba(34,197,94,0.08);border-radius:10px;padding:18px;text-align:center;border:1px solid rgba(34,197,94,0.15);">
+        <p style="color:#4ade80;font-size:32px;font-weight:800;margin:0;">58</p>
+        <p style="color:rgba(255,255,255,0.45);font-size:12px;margin:6px 0 0;">Web 测试全过</p>
+      </div>
+      <div style="flex:1;min-width:120px;background:rgba(99,102,241,0.08);border-radius:10px;padding:18px;text-align:center;border:1px solid rgba(99,102,241,0.15);">
+        <p style="color:#818cf8;font-size:32px;font-weight:800;margin:0;">464</p>
+        <p style="color:rgba(255,255,255,0.45);font-size:12px;margin:6px 0 0;">全量测试通过</p>
+      </div>
+      <div style="flex:1;min-width:120px;background:rgba(168,85,247,0.08);border-radius:10px;padding:18px;text-align:center;border:1px solid rgba(168,85,247,0.15);">
+        <p style="color:#a78bfa;font-size:32px;font-weight:800;margin:0;">17</p>
+        <p style="color:rgba(255,255,255,0.45);font-size:12px;margin:6px 0 0;">页面组件化</p>
+      </div>
+      <div style="flex:1;min-width:120px;background:rgba(250,204,21,0.08);border-radius:10px;padding:18px;text-align:center;border:1px solid rgba(250,204,21,0.15);">
+        <p style="color:#facc15;font-size:32px;font-weight:800;margin:0;">15</p>
+        <p style="color:rgba(255,255,255,0.45);font-size:12px;margin:6px 0 0;">次 Commit</p>
+      </div>
+    </div>
+
+    <div style="margin:24px 0 0;padding:20px;background:rgba(255,255,255,0.03);border-radius:10px;text-align:center;">
+      <p style="color:rgba(255,255,255,0.55);font-size:13px;line-height:2;margin:0;">
+        ✅ TypeScript 全绿 · ✅ ESLint 0 错误 · ✅ Prettier 干净<br>
+        ✅ Light / Dark 双模式 · ✅ Desktop / Tablet / Mobile 响应式
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 9. GitHub ====== -->
+<section style="background:#1a1a2e;padding:36px 20px;">
+  <div style="max-width:640px;margin:0 auto;text-align:center;">
+    <h2 style="color:#fff;font-size:20px;font-weight:700;margin:0 0 16px;">🔗 开源仓库</h2>
+    <a href="https://github.com/ZMR0zhangmouren/DOT.NET-Code-Security-Audit-Platform" style="display:inline-block;background:rgba(99,102,241,0.2);color:#a5b4fc;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:14px;border:1px solid rgba(99,102,241,0.3);text-decoration:none;">GitHub: DOT.NET-Code-Security-Audit-Platform</a>
+  </div>
+</section>
+
+<!-- ====== 10. 结尾 ====== -->
+<section style="background:#0a0a14;padding:32px 20px 48px;text-align:center;">
+  <p style="color:rgba(255,255,255,0.3);font-size:12px;margin:0;">
+    由 Claude Code 协助构建 · 2026-07-02
+  </p>
+</section>
+
+</body>
+</html>
