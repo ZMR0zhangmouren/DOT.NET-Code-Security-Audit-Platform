@@ -1,25 +1,40 @@
+import { lazy, Suspense, type ComponentType } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 import AppLayout from '@/components/AppLayout';
-import { Button } from '@/components/ui/button';
-import DiffPage from '@/pages/DiffPage';
-import HomePage from '@/pages/HomePage';
+import { Skeleton } from '@/components/ui/skeleton';
+
+/** 懒加载包装 + Suspense fallback */
+function LazyPage({
+  loader,
+}: {
+  loader: () => Promise<{ default: ComponentType }>;
+}): React.ReactElement {
+  const Lazy = lazy(loader);
+  return (
+    <Suspense
+      fallback={
+        <main className="container py-6">
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-64" />
+            <Skeleton className="h-64 w-full rounded-lg" />
+          </div>
+        </main>
+      }
+    >
+      <Lazy />
+    </Suspense>
+  );
+}
+
+// 仅 LoginPage 不安 lazy(它是独立路由,初次访问即需,且不依赖 AppLayout)
 import LoginPage from '@/pages/LoginPage';
-import ProjectDetailPage from '@/pages/ProjectDetailPage';
-import ProjectsPage from '@/pages/ProjectsPage';
-import ReportPage from '@/pages/ReportPage';
-import ScanPage from '@/pages/ScanPage';
-import SettingsPage from '@/pages/SettingsPage';
-import TracePage from '@/pages/TracePage';
-import VulnLibraryDetailPage from '@/pages/VulnLibraryDetailPage';
-import VulnLibraryPage from '@/pages/VulnLibraryPage';
-import ConfigPage from '@/pages/admin/ConfigPage';
-import UsersPage from '@/pages/admin/UsersPage';
 
 /**
- * 根组件 —— 路由出口
+ * 根组件 —— 路由出口,全部页面 React.lazy 代码分割
  *
- * §9 路由表(逐步落地):
+ * §9 路由表:
  * - /                                            HomePage
  * - /login                                       LoginPage
  * - /projects                                    ProjectsPage
@@ -30,8 +45,12 @@ import UsersPage from '@/pages/admin/UsersPage';
  * - /projects/:id/scans/diff?a=&b=               DiffPage (§5.4 多 ScanRun 对比)
  * - /projects/:id/vuln-library                   VulnLibraryPage (§5.5)
  * - /projects/:id/vuln-library/:libId            VulnLibraryDetailPage (§5.5)
+ * - /projects/:id/scans/:runId/vulns             ScanVulnsPage (§5.5 实例列表)
+ * - /projects/:id/scans/:runId/vulns/:vulnId     ScanVulnDetailPage (§5.5 实例详情)
+ * - /projects/:id/vuln-library/compare           VulnComparePage (§5.5 跨版本对比)
  * - /admin/users                                 UsersPage (admin only)
  * - /admin/config                                ConfigPage (admin only)
+ * - /admin/audit-log                             AuditLogPage (admin only, §9)
  * - /me                                         SettingsPage (§6.2 改自己密码)
  */
 export default function App(): React.ReactElement {
@@ -44,30 +63,73 @@ export default function App(): React.ReactElement {
           element={
             <AppLayout>
               <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/projects" element={<ProjectsPage />} />
-                <Route path="/projects/:id" element={<ProjectDetailPage />} />
-                <Route path="/projects/:id/scans/:runId" element={<ScanPage />} />
-                <Route path="/projects/:id/scans/:runId/report" element={<ReportPage />} />
-                <Route path="/projects/:id/scans/:runId/trace" element={<TracePage />} />
-                <Route path="/projects/:id/scans/diff" element={<DiffPage />} />
-                <Route path="/projects/:id/vuln-library" element={<VulnLibraryPage />} />
+                <Route path="/" element={<LazyPage loader={() => import('@/pages/HomePage')} />} />
+                <Route
+                  path="/projects"
+                  element={<LazyPage loader={() => import('@/pages/ProjectsPage')} />}
+                />
+                <Route
+                  path="/projects/:id"
+                  element={<LazyPage loader={() => import('@/pages/ProjectDetailPage')} />}
+                />
+                <Route
+                  path="/projects/:id/scans/:runId"
+                  element={<LazyPage loader={() => import('@/pages/ScanPage')} />}
+                />
+                <Route
+                  path="/projects/:id/scans/:runId/report"
+                  element={<LazyPage loader={() => import('@/pages/ReportPage')} />}
+                />
+                <Route
+                  path="/projects/:id/scans/:runId/trace"
+                  element={<LazyPage loader={() => import('@/pages/TracePage')} />}
+                />
+                <Route
+                  path="/projects/:id/scans/diff"
+                  element={<LazyPage loader={() => import('@/pages/DiffPage')} />}
+                />
+                <Route
+                  path="/projects/:id/vuln-library"
+                  element={<LazyPage loader={() => import('@/pages/VulnLibraryPage')} />}
+                />
                 <Route
                   path="/projects/:id/vuln-library/:libId"
-                  element={<VulnLibraryDetailPage />}
+                  element={<LazyPage loader={() => import('@/pages/VulnLibraryDetailPage')} />}
                 />
-                <Route path="/admin/users" element={<UsersPage />} />
-                <Route path="/admin/config" element={<ConfigPage />} />
-                <Route path="/me" element={<SettingsPage />} />
+                <Route
+                  path="/projects/:id/scans/:runId/vulns"
+                  element={<LazyPage loader={() => import('@/pages/ScanVulnsPage')} />}
+                />
+                <Route
+                  path="/projects/:id/scans/:runId/vulns/:vulnId"
+                  element={<LazyPage loader={() => import('@/pages/ScanVulnDetailPage')} />}
+                />
+                <Route
+                  path="/projects/:id/vuln-library/compare"
+                  element={<LazyPage loader={() => import('@/pages/VulnComparePage')} />}
+                />
+                <Route
+                  path="/admin/users"
+                  element={<LazyPage loader={() => import('@/pages/admin/UsersPage')} />}
+                />
+                <Route
+                  path="/admin/config"
+                  element={<LazyPage loader={() => import('@/pages/admin/ConfigPage')} />}
+                />
+                <Route
+                  path="/admin/audit-log"
+                  element={<LazyPage loader={() => import('@/pages/admin/AuditLogPage')} />}
+                />
+                <Route
+                  path="/me"
+                  element={<LazyPage loader={() => import('@/pages/SettingsPage')} />}
+                />
                 <Route
                   path="*"
                   element={
-                    <main className="container py-8">
-                      <h1 className="text-2xl font-bold">404</h1>
-                      <p className="text-sm text-muted-foreground">Route not found</p>
-                      <Button className="mt-4" variant="outline">
-                        Go home
-                      </Button>
+                    <main className="container py-6 flex flex-col items-center justify-center min-h-[60vh]">
+                      <h1 className="text-6xl font-bold text-muted-foreground/30">404</h1>
+                      <p className="mt-4 text-lg text-muted-foreground">页面未找到</p>
                     </main>
                   }
                 />

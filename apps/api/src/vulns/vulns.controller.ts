@@ -66,6 +66,11 @@ export class VulnsController {
     return this.library.setStatus(id, body.status);
   }
 
+  @Get('scan-runs/:runId/vulnerabilities')
+  listByRun(@Param('runId') runId: string): VulnerabilityPublic[] {
+    return this.vuln.listByScanRun(runId);
+  }
+
   @Get('vulnerabilities/:id')
   getVuln(@Param('id') id: string): VulnerabilityPublic {
     return this.vuln.get(id);

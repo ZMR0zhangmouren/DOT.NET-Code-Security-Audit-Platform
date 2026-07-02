@@ -45,6 +45,15 @@ export class VulnService {
     return this.toPublic(row);
   }
 
+  listByScanRun(scanRunId: string): VulnerabilityPublic[] {
+    const rows = this.db
+      .select()
+      .from(vulnerabilities)
+      .where(eq(vulnerabilities.scanRunId, scanRunId))
+      .all();
+    return rows.map((r) => this.toPublic(r));
+  }
+
   /** 改 vulnerability 状态 + 联动 library 状态 */
   setStatus(id: string, status: VulnerabilityStatus): VulnerabilityPublic {
     const existing = this.db.select().from(vulnerabilities).where(eq(vulnerabilities.id, id)).get();
