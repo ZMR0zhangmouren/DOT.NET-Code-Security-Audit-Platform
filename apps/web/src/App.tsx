@@ -1,10 +1,56 @@
-import { lazy, Suspense, type ComponentType } from 'react';
+import { Component, lazy, Suspense, type ComponentType, type ReactNode } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 import AppLayout from '@/components/AppLayout';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
-/** 懒加载包装 + Suspense fallback */
+/**
+ * ErrorBoundary —— 捕获懒加载组件渲染异常,显示降级 UI 而非白屏
+ */
+class ErrorBoundary extends Component<
+  { children: ReactNode; fallback?: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode; fallback?: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): { hasError: boolean; error: Error } {
+    return { hasError: true, error };
+  }
+
+  override render(): ReactNode {
+    if (this.state.hasError) {
+      return (
+        this.props.fallback ?? (
+          <main className="container py-6">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-8 text-center">
+              <h2 className="text-lg font-semibold text-destructive">页面加载失败</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {this.state.error?.message ?? '未知错误'}
+              </p>
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => {
+                  this.setState({ hasError: false, error: null });
+                  window.location.reload();
+                }}
+              >
+                刷新页面
+              </Button>
+            </div>
+          </main>
+        )
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/** 懒加载包装 + Suspense fallback + ErrorBoundary */
 function LazyPage({
   loader,
 }: {
@@ -12,19 +58,21 @@ function LazyPage({
 }): React.ReactElement {
   const Lazy = lazy(loader);
   return (
-    <Suspense
-      fallback={
-        <main className="container py-6">
-          <div className="space-y-4">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-64" />
-            <Skeleton className="h-64 w-full rounded-lg" />
-          </div>
-        </main>
-      }
-    >
-      <Lazy />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense
+        fallback={
+          <main className="container py-6">
+            <div className="space-y-4">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-64" />
+              <Skeleton className="h-64 w-full rounded-lg" />
+            </div>
+          </main>
+        }
+      >
+        <Lazy />
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 
