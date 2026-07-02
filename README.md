@@ -5,11 +5,10 @@
 
 <p align="left">
   <a href="#-快速启动"><img alt="node" src="https://img.shields.io/badge/node-%E2%89%A520%20LTS-339933?logo=node.js&logoColor=white"></a>
-  <a href="#-测试与质量门禁"><img alt="tests" src="https://img.shields.io/badge/tests-454%20passed-4c1?logo=vitest&logoColor=white"></a>
+  <a href="#-测试与质量门禁"><img alt="tests" src="https://img.shields.io/badge/tests-464%20passed-4c1?logo=vitest&logoColor=white"></a>
   <a href="#-测试与质量门禁"><img alt="coverage api" src="https://img.shields.io/badge/api%20coverage-80.18%25-brightgreen"></a>
-  <a href="#-测试与质量门禁"><img alt="coverage shared/web" src="https://img.shields.io/badge/shared%2Fweb%20coverage-100%25-brightgreen"></a>
+  <a href="#-测试与质量门禁"><img alt="coverage shared/web" src="https://img.shields.io/badge/web%20coverage-100%25-brightgreen"></a>
   <a href=".github/workflows/ci.yml"><img alt="ci" src="https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=github-actions&logoColor=white"></a>
-  <a href="#-许可证"><img alt="license" src="https://img.shields.io/badge/license-Internal-lightgrey"></a>
 </p>
 
 [English Version](./README.en.md)
@@ -62,9 +61,13 @@ pnpm dev
 
 ## 📸 关键页面预览
 
-| 扫描详情页(实时日志 / 阶段产物 / Agent Trace 入口) | 漏洞报告页(Markdown 渲染 + 章节导航 + 漏洞清单) |
-|---|---|
-| ![scan-detail](./docs/screenshots/scan-detail.png) | ![scan-report](./docs/screenshots/scan-report.png) |
+<p align="center">
+  <img src="./docs/screenshots/demo.gif" alt="平台功能演示" width="90%">
+  <br>
+  <sup>登录 → Dashboard → 项目详情 → 扫描 → 报告，全流程靛蓝主题 + 毛玻璃 + Light/Dark 切换</sup>
+</p>
+
+> 完整设计规范见 [`docs/superpowers/specs/2026-07-02-frontend-redesign-design.md`](./docs/superpowers/specs/2026-07-02-frontend-redesign-design.md)
 
 ## 🧱 技术栈
 
@@ -72,10 +75,10 @@ pnpm dev
 |------|------|
 | AI 编排 | `@openai/agents`(OpenAI Agents SDK,TS/JS)+ `openai` SDK |
 | 后端 | NestJS 10 + TypeScript 5.7 + Drizzle ORM |
-| 前端 | React 18 + Vite 5.4 + shadcn/ui + Tailwind CSS 3 |
+| 前端 | React 18 + Vite 5.4 + shadcn/ui(15 组件) + Tailwind CSS 3 · 靛蓝主题(243 75% 59%)+ Light/Dark + 毛玻璃 + Inter / JetBrains Mono |
 | 数据库 | SQLite 3.x(MVP,17 张表)+ Drizzle 迁移 |
 | 任务队列 | BullMQ + Redis(扫描并发 / 崩溃恢复)+ Bull-Board |
-| 鉴权 | `@nestjs/jwt` + `passport-jwt` + argon2id 哈希 |
+| 鉴权 | `@nestjs/jwt` + `passport-jwt` + argon2id + refresh-token(HttpOnly Cookie + 轮换 + 吊销) |
 | 测试 | Vitest 2 + `@vitest/coverage-v8`(shared/api/web 三 project) |
 | Lint | ESLint 9(flat config)+ Prettier 3 |
 | 包管理 | pnpm 10(workspace) |
@@ -106,7 +109,7 @@ pnpm dev
 │   │       ├── health/               #   /api/health + 队列状态
 │   │       └── db/                   #   Drizzle schema(17 表)+ 迁移
 │   └── web/                          # @platform/web —— React + Vite(ESM)
-│       └── src/pages/                #   12 页面(Login/Projects/Report/Trace/...)
+│       └── src/pages/                #   17 页面 + 三区布局(TopBar/Sidebar/Content)+ 响应式(Desktop/Tablet/Mobile)
 ├── packages/
 │   └── shared/                       # @platform/shared —— 跨包枚举与类型
 ├── dotnet-security-audit-skill/      # ★ 上游开源 .NET 审计 Skill 集合(clone 自 github.com/ZMR0zhangmouren/),平台通过 SkillBundleVersion 锁定 commit,不直接修改
@@ -192,7 +195,7 @@ pnpm dev
 # 全栈
 pnpm install              # 装依赖
 pnpm -r typecheck         # 三个子包 tsc --noEmit
-pnpm -r test              # 各包跑 Vitest(api 405 / shared 6 / web 43)
+pnpm -r test              # 各包跑 Vitest(api 405 / shared 6 / web 59)
 pnpm -r test --coverage   # 生成 v8 覆盖率
 pnpm lint                 # ESLint + Prettier --check
 pnpm format               # Prettier --write
@@ -211,7 +214,7 @@ docker compose up -d --build         # 一键起 3 服务(api / web / redis)
 
 | 项 | 状态 | 数值 |
 |----|------|------|
-| 测试总数 | ✅ | **454 passed**(shared 6 · api 405 · web 43),0 失败 0 警告 |
+| 测试总数 | ✅ | **464 passed**(shared 6 · api 405 · web 59),0 失败 0 警告 |
 | 覆盖率 | ✅ | shared / web **100%** + api **80.18%**,阈值已启用并通过 |
 | TypeScript | ✅ | `pnpm -r typecheck` 三包全绿 |
 | Lint | ✅ | ESLint **0 错 0 警** + Prettier 干净 |
@@ -235,8 +238,12 @@ docker compose up -d --build
 
 ## 🗺️ 路线图
 
-### ✅ 已落地(本仓库当前状态)
+### ✅ 已落地(2026-07-02 最新)
 
+- ✅ **前端 UI 重设计** —— 靛蓝主题 + 毛玻璃 + Light/Dark 切换 + 响应式三断点 + 17 页面 + React.lazy 代码分割
+- ✅ **前端集成测试** —— 59 个 web 测试(page-level:Login/Home/Projects + lib/hooks)
+- ✅ **refresh-token + HttpOnly Cookie** —— 内存存 accessToken + Cookie 自动传输 + 静默刷新 + 轮换 + 吊销
+- ✅ **4 新页面** —— 漏洞实例列表/详情、跨版本漏洞对比、审计日志(预览)
 - ✅ 多 Skill Bundle 并存 + `replay-with-latest`(§11 Q7)
 - ✅ 真接 `from-git`(HTTPS token + SSH key + 8 类错误分类)
 - ✅ 真接 `from-github`(REST tarball + 凭证优先级 env > git_credentials)
@@ -246,12 +253,10 @@ docker compose up -d --build
 - ✅ 多 ScanRun 对比 + 报告 Markdown 渲染 + 章节导航
 - ✅ Vitest coverage v8 provider + 阈值强制门禁
 - ✅ Phase 4 Docker 化部署(多阶段 + compose)
-- ✅ refresh-token + HttpOnly Cookie + 旋转/吊销
 - ✅ Phase 3 漏洞趋势图(VulnLibrary 按时间聚合)
 
 ### 📋 待办候选
 
-- Phase 2 e2e:web 端 React Testing Library 覆盖 `pages/` 12 个页面
 - 真 git clone e2e:用公开 repo + 真凭证实测
 - Skill 升级自动跑一遍重扫(CI hook)
 - 远程备份:用户配置 git remote URL 后 `git push`
@@ -264,4 +269,4 @@ Internal / 暂未开源。所有 commit 仅留本地 `main`(参见 [`CLAUDE.md`]
 
 ---
 
-<sub>由 Claude Code 协助构建 · 2026-06-30</sub>
+<sub>由 Claude Code 协助构建 · 2026-07-02 (UI 重设计)</sub>

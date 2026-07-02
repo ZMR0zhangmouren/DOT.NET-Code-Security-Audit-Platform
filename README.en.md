@@ -5,7 +5,7 @@
 
 <p align="left">
   <a href="#-quick-start"><img alt="node" src="https://img.shields.io/badge/node-%E2%89%A520%20LTS-339933?logo=node.js&logoColor=white"></a>
-  <a href="#-testing--quality-gates"><img alt="tests" src="https://img.shields.io/badge/tests-454%20passed-4c1?logo=vitest&logoColor=white"></a>
+  <a href="#-testing--quality-gates"><img alt="tests" src="https://img.shields.io/badge/tests-464%20passed-4c1?logo=vitest&logoColor=white"></a>
   <a href="#-testing--quality-gates"><img alt="coverage api" src="https://img.shields.io/badge/api%20coverage-80.18%25-brightgreen"></a>
   <a href="#-testing--quality-gates"><img alt="coverage shared/web" src="https://img.shields.io/badge/shared%2Fweb%20coverage-100%25-brightgreen"></a>
   <a href=".github/workflows/ci.yml"><img alt="ci" src="https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=github-actions&logoColor=white"></a>
@@ -62,9 +62,13 @@ Open <http://127.0.0.1:5180> in your browser → log in with `admin` / `admin123
 
 ## 📸 Key Screenshots
 
-| Scan Detail (live logs / stage artifacts / Agent Trace entry) | Scan Report (Markdown rendering + section navigator + vuln list) |
-|---|---|
-| ![scan-detail](./docs/screenshots/scan-detail.png) | ![scan-report](./docs/screenshots/scan-report.png) |
+<p align="center">
+  <img src="./docs/screenshots/demo.gif" alt="Platform Demo" width="90%">
+  <br>
+  <sup>Login → Dashboard → Project Detail → Scan → Report — full workflow with Indigo theme + Glassmorphism + Light/Dark toggle</sup>
+</p>
+
+> Full design spec: [`docs/superpowers/specs/2026-07-02-frontend-redesign-design.md`](./docs/superpowers/specs/2026-07-02-frontend-redesign-design.md)
 
 ## 🧱 Tech Stack
 
@@ -106,7 +110,7 @@ Open <http://127.0.0.1:5180> in your browser → log in with `admin` / `admin123
 │   │       ├── health/               #   /api/health + queue status
 │   │       └── db/                   #   Drizzle schema (17 tables) + migrations
 │   └── web/                          # @platform/web —— React + Vite (ESM)
-│       └── src/pages/                #   12 pages (Login / Projects / Report / Trace / ...)
+│       └── src/pages/                #   17 pages + 3-zone layout (TopBar/Sidebar/Content) + responsive (Desktop/Tablet/Mobile)
 ├── packages/
 │   └── shared/                       # @platform/shared —— cross-package enums and types
 ├── dotnet-security-audit-skill/      # ★ Upstream open-source .NET audit Skill collection (cloned from github.com/ZMR0zhangmouren/); platform pins via SkillBundleVersion, never modifies
@@ -193,7 +197,7 @@ Open <http://127.0.0.1:5180> in your browser → log in with `admin` / `admin123
 # Whole stack
 pnpm install              # install deps
 pnpm -r typecheck         # tsc --noEmit for the three packages
-pnpm -r test              # run Vitest per package (api 405 / shared 6 / web 43)
+pnpm -r test              # run Vitest per package (api 405 / shared 6 / web 59)
 pnpm -r test --coverage   # generate v8 coverage report
 pnpm lint                 # ESLint + Prettier --check
 pnpm format               # Prettier --write
@@ -212,7 +216,7 @@ docker compose up -d --build         # spin up 3 services (api / web / redis)
 
 | Item | Status | Value |
 |------|--------|-------|
-| Total tests | ✅ | **454 passed** (shared 6 · api 405 · web 43), 0 failed, 0 warnings |
+| Total tests | ✅ | **464 passed** (shared 6 · api 405 · web 59), 0 failed, 0 warnings |
 | Coverage | ✅ | shared / web **100%** + api **80.18%**, thresholds enforced and passing |
 | TypeScript | ✅ | `pnpm -r typecheck` all three packages green |
 | Lint | ✅ | ESLint **0 errors 0 warnings** + Prettier clean |
@@ -265,4 +269,4 @@ Internal — not open source at this time. All commits stay on the local `main` 
 
 ---
 
-<sub>Built with assistance from Claude Code · 2026-06-30</sub>
+<sub>Built with assistance from Claude Code · 2026-07-02 (UI redesign)</sub>
