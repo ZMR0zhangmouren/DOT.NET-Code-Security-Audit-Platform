@@ -6,44 +6,65 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 240 10% 98%;
+    --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 4.8% 95%;
+    --secondary-foreground: 240 10% 3.9%;
+    --muted: 240 4.8% 95%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 4.8% 95%;
+    --accent-foreground: 240 10% 3.9%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 243 75% 59%;
+    --radius: 0.625rem;
+
+    /* 语义扩展色 */
+    --severity-critical: 0 72% 51%;
+    --severity-high: 25 95% 53%;
+    --severity-medium: 45 93% 47%;
+    --severity-low: 200 80% 50%;
+    --severity-info: 240 5% 50%;
+    --success: 142 72% 40%;
+    --warning: 38 92% 50%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 95%;
+    --card: 240 8% 8%;
+    --card-foreground: 0 0% 95%;
+    --popover: 240 8% 8%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 243 75% 68%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 4% 14%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 240 4% 14%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 4% 14%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 4% 20%;
+    --input: 240 4% 20%;
+    --ring: 243 75% 68%;
+
+    --severity-critical: 0 72% 55%;
+    --severity-high: 25 95% 58%;
+    --severity-medium: 45 93% 52%;
+    --severity-low: 200 80% 55%;
+    --severity-info: 240 5% 55%;
+    --success: 142 72% 45%;
+    --warning: 38 92% 55%;
   }
 }
 
@@ -53,14 +74,39 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 }
 
-/* 报告 Markdown 渲染区定制 —— 与 Tailwind typography 协作 */
+/* 毛玻璃工具类 */
 @layer components {
-  .report-prose {
-    /* 在 prose 基础上做报告专属微调 */
+  .glass-surface {
+    @apply border border-border/30;
+    background: hsl(var(--card) / 0.72);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
   }
+
+  .glass-card {
+    @apply border border-border/25;
+    background: hsl(var(--card) / 0.65);
+    backdrop-filter: blur(10px) saturate(120%);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+    border-radius: var(--radius);
+  }
+
+  .glass-popover {
+    @apply border border-border/35;
+    background: hsl(var(--popover) / 0.82);
+    backdrop-filter: blur(8px) saturate(110%);
+    -webkit-backdrop-filter: blur(8px) saturate(110%);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 32px hsl(0 0% 0% / 0.12);
+  }
+}
+
+/* 报告 Markdown 渲染 */
+@layer components {
   .report-prose pre {
     @apply rounded-md border border-border !bg-[#0d1117] p-4 overflow-x-auto;
   }

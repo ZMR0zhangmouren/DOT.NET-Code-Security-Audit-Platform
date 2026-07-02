@@ -1,73 +1,38 @@
-import type { ReactNode } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useState, type ReactNode } from 'react';
 
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
+import { Sidebar } from '@/components/Sidebar';
+import { TopBar } from '@/components/TopBar';
+import { cn } from '@/lib/utils';
 
 /**
- * 全局 Layout —— 顶部导航 + 侧栏 + 主区
+ * 全局 Layout —— 三区结构：TopBar + Sidebar + Content
  *
- * Phase 1:极简版。Phase 2 加面包屑、用户菜单、主题切换。
+ * - TopBar: sticky 毛玻璃顶部栏，Logo + 折叠按钮 + 主题切换 + 用户头像下拉
+ * - Sidebar: fixed 毛玻璃侧边栏，可折叠 (w-16 / w-56)，支持图标+Tooltip 模式
+ * - Content: 自适应内容区，ml-16 / ml-56 过渡动画
  */
 export default function AppLayout({ children }: { children: ReactNode }): React.ReactElement {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('sidebar-collapsed') === 'true';
+  });
+
+  function toggleSidebar(): void {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('sidebar-collapsed', String(next));
+      return next;
+    });
+  }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="border-b bg-card">
-        <div className="container flex h-14 items-center justify-between">
-          <Link to="/" className="font-bold">
-            Audit Platform
-          </Link>
-          <nav className="flex items-center gap-2 text-sm">
-            {user ? (
-              <>
-                <NavLink to="/projects" className="px-3 py-1 hover:underline">
-                  Projects
-                </NavLink>
-                {user.role === 'admin' && (
-                  <>
-                    <NavLink to="/admin/users" className="px-3 py-1 hover:underline">
-                      Users
-                    </NavLink>
-                    <NavLink to="/admin/config" className="px-3 py-1 hover:underline">
-                      Config
-                    </NavLink>
-                  </>
-                )}
-                <span className="px-2 text-xs text-muted-foreground">
-                  <NavLink
-                    to="/me"
-                    className="hover:underline"
-                    data-testid="nav-me"
-                    title="个人中心 / 改密码"
-                  >
-                    {user.username}
-                  </NavLink>{' '}
-                  · {user.role}
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    logout();
-                    navigate('/login');
-                  }}
-                  data-testid="logout-button"
-                >
-                  Logout
-                </Button>
-              </>
-            ) : (
-              <NavLink to="/login" className="px-3 py-1 hover:underline">
-                Login
-              </NavLink>
-            )}
-          </nav>
-        </div>
-      </header>
-      <main className="flex-1">{children}</main>
+    <div className="min-h-screen bg-background">
+      <TopBar onToggleSidebar={toggleSidebar} />
+      <Sidebar collapsed={sidebarCollapsed} />
+      <main
+        className={cn('transition-[margin] duration-300', sidebarCollapsed ? 'ml-16' : 'ml-56')}
+      >
+        <div className="min-h-[calc(100vh-3.5rem)]">{children}</div>
+      </main>
     </div>
   );
 }

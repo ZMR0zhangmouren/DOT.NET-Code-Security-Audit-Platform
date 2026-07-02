@@ -13,9 +13,9 @@ describe('scanTypes.ts', () => {
   describe('scanStatusClass', () => {
     it.each<[ScanRunStatus, string]>([
       ['queued', 'bg-muted text-muted-foreground'],
-      ['running', 'bg-blue-500 text-white'],
-      ['succeeded', 'bg-green-600 text-white'],
-      ['failed', 'bg-destructive text-destructive-foreground'],
+      ['running', 'bg-primary/20 text-primary'],
+      ['succeeded', 'bg-success/15 text-success border border-success/30'],
+      ['failed', 'bg-destructive/15 text-destructive border border-destructive/30'],
       ['canceled', 'bg-muted text-muted-foreground'],
     ])('status=%s → 对应 class', (s, expected) => {
       expect(scanStatusClass(s)).toBe(expected);
@@ -25,8 +25,8 @@ describe('scanTypes.ts', () => {
   describe('coverageClass', () => {
     it.each<[ApiCoverageStatus, string]>([
       ['NOT_RUN', 'bg-muted text-muted-foreground'],
-      ['PARTIAL', 'bg-yellow-500 text-white'],
-      ['COMPLETE', 'bg-green-600 text-white'],
+      ['PARTIAL', 'bg-warning/15 text-warning border border-warning/30'],
+      ['COMPLETE', 'bg-success/15 text-success border border-success/30'],
     ])('coverage=%s → 对应 class', (s, expected) => {
       expect(coverageClass(s)).toBe(expected);
     });
@@ -34,8 +34,8 @@ describe('scanTypes.ts', () => {
 
   describe('gateClass', () => {
     it.each<[GateDecision, string]>([
-      ['PASS', 'bg-green-600 text-white'],
-      ['BLOCKED', 'bg-destructive text-destructive-foreground'],
+      ['PASS', 'bg-success/15 text-success border border-success/30'],
+      ['BLOCKED', 'bg-destructive/15 text-destructive border border-destructive/30'],
       ['PENDING', 'bg-muted text-muted-foreground'],
     ])('gate=%s → 对应 class', (g, expected) => {
       expect(gateClass(g)).toBe(expected);

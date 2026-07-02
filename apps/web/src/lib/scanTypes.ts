@@ -75,11 +75,11 @@ export function scanStatusClass(status: ScanRunStatus): string {
     case 'queued':
       return 'bg-muted text-muted-foreground';
     case 'running':
-      return 'bg-blue-500 text-white';
+      return 'bg-primary/20 text-primary';
     case 'succeeded':
-      return 'bg-green-600 text-white';
+      return 'bg-success/15 text-success border border-success/30';
     case 'failed':
-      return 'bg-destructive text-destructive-foreground';
+      return 'bg-destructive/15 text-destructive border border-destructive/30';
     case 'canceled':
       return 'bg-muted text-muted-foreground';
   }
@@ -90,18 +90,18 @@ export function coverageClass(s: ApiCoverageStatus): string {
     case 'NOT_RUN':
       return 'bg-muted text-muted-foreground';
     case 'PARTIAL':
-      return 'bg-yellow-500 text-white';
+      return 'bg-warning/15 text-warning border border-warning/30';
     case 'COMPLETE':
-      return 'bg-green-600 text-white';
+      return 'bg-success/15 text-success border border-success/30';
   }
 }
 
 export function gateClass(g: GateDecision): string {
   switch (g) {
     case 'PASS':
-      return 'bg-green-600 text-white';
+      return 'bg-success/15 text-success border border-success/30';
     case 'BLOCKED':
-      return 'bg-destructive text-destructive-foreground';
+      return 'bg-destructive/15 text-destructive border border-destructive/30';
     case 'PENDING':
       return 'bg-muted text-muted-foreground';
   }

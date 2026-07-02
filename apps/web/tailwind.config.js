@@ -38,10 +38,27 @@ export default {
           DEFAULT: 'hsl(var(--accent))',
           foreground: 'hsl(var(--accent-foreground))',
         },
+        popover: {
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))',
+        },
         card: {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        severity: {
+          critical: 'hsl(var(--severity-critical))',
+          high: 'hsl(var(--severity-high))',
+          medium: 'hsl(var(--severity-medium))',
+          low: 'hsl(var(--severity-low))',
+          info: 'hsl(var(--severity-info))',
+        },
+        success: 'hsl(var(--success))',
+        warning: 'hsl(var(--warning))',
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       borderRadius: {
         lg: 'var(--radius)',
