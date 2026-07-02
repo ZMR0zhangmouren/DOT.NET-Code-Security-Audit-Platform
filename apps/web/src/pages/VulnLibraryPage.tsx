@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
-import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/PageHeader';
+import { SeverityBadge } from '@/components/SeverityBadge';
+import { StatusBadge } from '@/components/StatusBadge';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/lib/api';
 
 interface VulnLibraryEntry {
@@ -30,6 +34,22 @@ const SEV_COLORS: Record<string, string> = {
   H: 'bg-orange-500',
   M: 'bg-yellow-500',
   L: 'bg-muted-foreground/40',
+};
+
+const SEVERITY_MAP: Record<string, 'critical' | 'high' | 'medium' | 'low'> = {
+  C: 'critical',
+  H: 'high',
+  M: 'medium',
+  L: 'low',
+};
+
+const STATUS_VARIANT_MAP: Record<string, 'destructive' | 'warning' | 'success' | 'default'> = {
+  open: 'destructive',
+  fixing: 'warning',
+  fixed: 'success',
+  wontfix: 'default',
+  ignored: 'default',
+  suppressed: 'default',
 };
 
 /**
@@ -75,25 +95,16 @@ export default function VulnLibraryPage(): React.ReactElement {
 
   return (
     <main className="container py-8">
-      <Link to={`/projects/${id ?? ''}`} className="text-sm text-muted-foreground underline">
-        ← Project
-      </Link>
-
-      <header className="mt-3 mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Vulnerability Library</h1>
-          <p className="text-sm text-muted-foreground">
-            Section 5.5 - root-cause vulnerabilities (fingerprint-grouped)
-          </p>
-        </div>
-        <Button variant="outline" onClick={() => void refresh()} data-testid="lib-refresh">
-          Refresh
-        </Button>
-      </header>
+      <PageHeader
+        title="Vulnerability Library"
+        description="Section 5.5 - root-cause vulnerabilities (fingerprint-grouped)"
+        breadcrumbs={[{ label: 'Project', to: `/projects/${id ?? ''}` }]}
+        actions={[{ label: 'Refresh', variant: 'outline', onClick: () => void refresh() }]}
+      />
 
       {/* Phase 3 — 漏洞趋势图 */}
       {trend.length > 0 && (
-        <section className="mb-8 rounded-lg border bg-card p-6" data-testid="trend-section">
+        <Card className="mb-8 p-6" data-testid="trend-section">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Vulnerability Trend</h2>
             <div className="flex gap-1 rounded-md bg-muted p-0.5">
@@ -164,7 +175,7 @@ export default function VulnLibraryPage(): React.ReactElement {
               </span>
             ))}
           </div>
-        </section>
+        </Card>
       )}
 
       {err && (
@@ -174,90 +185,69 @@ export default function VulnLibraryPage(): React.ReactElement {
       )}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        <div className="grid gap-3" data-testid="lib-list-loading">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="p-4">
+              <div className="flex items-start justify-between">
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-5 w-3/5" />
+                  <Skeleton className="h-3 w-2/5" />
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <Skeleton className="h-5 w-12" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+              </div>
+              <Skeleton className="h-3 w-4/5 mt-2" />
+            </Card>
+          ))}
+        </div>
       ) : entries.length === 0 ? (
-        <p
-          className="rounded-lg border bg-card p-6 text-sm text-muted-foreground"
-          data-testid="lib-empty"
-        >
-          No library entries. Run a scan to populate the library.
-        </p>
+        <Card className="p-6" data-testid="lib-empty">
+          <p className="text-sm text-muted-foreground">
+            No library entries. Run a scan to populate the library.
+          </p>
+        </Card>
       ) : (
         <ul className="grid gap-3" data-testid="lib-list">
           {entries.map((e) => (
-            <li
-              key={e.id}
-              className="rounded-lg border bg-card p-4 shadow-sm"
-              data-testid="lib-row"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <Link
-                    to={`/projects/${id}/vuln-library/${e.id}`}
-                    className="text-lg font-semibold hover:underline"
-                    data-testid="lib-title"
-                  >
-                    {e.title ?? `${e.vulnType} vulnerability`}
-                  </Link>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {e.vulnType} · ID <code className="font-mono">{e.id.slice(0, 16)}…</code>
-                  </p>
+            <li key={e.id} data-testid="lib-row">
+              <Card className="p-4 shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <Link
+                      to={`/projects/${id}/vuln-library/${e.id}`}
+                      className="text-lg font-semibold hover:underline"
+                      data-testid="lib-title"
+                    >
+                      {e.title ?? `${e.vulnType} vulnerability`}
+                    </Link>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {e.vulnType} · ID <code className="font-mono">{e.id.slice(0, 16)}…</code>
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 text-xs">
+                    <SeverityBadge
+                      severity={SEVERITY_MAP[e.severityMax] ?? 'info'}
+                      data-testid="lib-severity"
+                    />
+                    <StatusBadge
+                      label={e.status}
+                      variant={STATUS_VARIANT_MAP[e.status]}
+                      data-testid="lib-status"
+                    />
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-1 text-xs">
-                  <span
-                    className={`rounded px-2 py-0.5 ${severityClass(e.severityMax)}`}
-                    data-testid="lib-severity"
-                  >
-                    {e.severityMax}
-                  </span>
-                  <span
-                    className={`rounded px-2 py-0.5 ${statusClass(e.status)}`}
-                    data-testid="lib-status"
-                  >
-                    {e.status}
-                  </span>
-                </div>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                First seen {new Date(e.firstSeenAt).toLocaleDateString()} · Last seen{' '}
-                {new Date(e.lastSeenAt).toLocaleDateString()} · Occurrences: {e.occurrenceCount}
-                {e.tags.length > 0 && <> · Tags: {e.tags.join(', ')}</>}
-              </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  First seen {new Date(e.firstSeenAt).toLocaleDateString()} · Last seen{' '}
+                  {new Date(e.lastSeenAt).toLocaleDateString()} · Occurrences: {e.occurrenceCount}
+                  {e.tags.length > 0 && <> · Tags: {e.tags.join(', ')}</>}
+                </p>
+              </Card>
             </li>
           ))}
         </ul>
       )}
     </main>
   );
-}
-
-function severityClass(s: string): string {
-  switch (s) {
-    case 'C':
-      return 'bg-destructive text-destructive-foreground';
-    case 'H':
-      return 'bg-orange-500 text-white';
-    case 'M':
-      return 'bg-yellow-500 text-white';
-    default:
-      return 'bg-muted text-muted-foreground';
-  }
-}
-
-function statusClass(s: string): string {
-  switch (s) {
-    case 'open':
-      return 'bg-destructive text-destructive-foreground';
-    case 'fixing':
-      return 'bg-yellow-500 text-white';
-    case 'fixed':
-      return 'bg-green-600 text-white';
-    case 'wontfix':
-      return 'bg-muted text-muted-foreground';
-    case 'ignored':
-    case 'suppressed':
-      return 'bg-muted text-muted-foreground';
-    default:
-      return 'bg-muted text-muted-foreground';
-  }
 }

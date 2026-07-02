@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
+import { PageHeader } from '@/components/PageHeader';
+import { SeverityBadge } from '@/components/SeverityBadge';
+import { StatusBadge } from '@/components/StatusBadge';
+import { Card } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { coverageClass, gateClass, scanStatusClass, type ScanRunPublic } from '@/lib/scanTypes';
 
 // ---------------------------------------------------------------------------
-// §5.4 diff 接口类型 —— 与 apps/api/src/scan/scan-diff.util.ts 一致
+// 5.4 diff 接口类型 —— 与 apps/api/src/scan/scan-diff.util.ts 一致
 // ---------------------------------------------------------------------------
 
 interface VulnSummary {
@@ -67,8 +71,21 @@ interface ScanDiff {
   };
 }
 
+function severityBadgeVariant(s: 'C' | 'H' | 'M' | 'L'): 'critical' | 'high' | 'medium' | 'low' {
+  switch (s) {
+    case 'C':
+      return 'critical';
+    case 'H':
+      return 'high';
+    case 'M':
+      return 'medium';
+    case 'L':
+      return 'low';
+  }
+}
+
 /**
- * §5.4 /projects/:id/scans/diff?a=...&b=... —— 多 ScanRun 对比页
+ * 5.4 /projects/:id/scans/diff?a=...&b=... —— 多 ScanRun 对比页
  *
  * 顶部:runA / runB 两个摘要卡
  * 三段:
@@ -105,16 +122,11 @@ export default function DiffPage(): React.ReactElement {
 
   return (
     <main className="container py-8">
-      <Link to={`/projects/${id ?? ''}`} className="text-sm text-muted-foreground underline">
-        ← Project
-      </Link>
-
-      <header className="mt-3 mb-4">
-        <h1 className="text-3xl font-bold">Scan Diff</h1>
-        <p className="text-sm text-muted-foreground">
-          §5.4 · A vs B — vulnerabilities · library · coverage
-        </p>
-      </header>
+      <PageHeader
+        title="Scan Diff"
+        description="5.4 - A vs B - vulnerabilities - library - coverage"
+        breadcrumbs={[{ label: 'Project', to: `/projects/${id ?? ''}` }]}
+      />
 
       {err && (
         <p className="mb-3 text-sm text-destructive" role="alert">
@@ -137,8 +149,8 @@ export default function DiffPage(): React.ReactElement {
             <h2 className="mb-2 text-lg font-semibold">
               Vulnerabilities Diff
               <span className="ml-2 text-xs text-muted-foreground">
-                only A: {diff.vulnerabilities.onlyInA.length} · only B:{' '}
-                {diff.vulnerabilities.onlyInB.length} · in both:{' '}
+                only A: {diff.vulnerabilities.onlyInA.length} - only B:{' '}
+                {diff.vulnerabilities.onlyInB.length} - in both:{' '}
                 {diff.vulnerabilities.inBoth.length}
               </span>
             </h2>
@@ -162,10 +174,14 @@ export default function DiffPage(): React.ReactElement {
                       data-testid="vuln-only-a"
                     >
                       <td className="p-2 text-xs text-muted-foreground">only A</td>
-                      <td className="p-2 font-mono text-xs">{v.fingerprint.slice(0, 12)}…</td>
+                      <td className="p-2 font-mono text-xs">{v.fingerprint.slice(0, 12)}...</td>
                       <td className="p-2 text-xs">{v.vulnType}</td>
-                      <td className="p-2 text-xs">{v.severity}</td>
-                      <td className="p-2 text-xs">{v.status}</td>
+                      <td className="p-2 text-xs">
+                        <SeverityBadge severity={severityBadgeVariant(v.severity)} />
+                      </td>
+                      <td className="p-2 text-xs">
+                        <StatusBadge label={v.status} variant="default" />
+                      </td>
                       <td className="p-2 text-xs">
                         {v.filePath}:{v.lineStart}
                       </td>
@@ -178,10 +194,14 @@ export default function DiffPage(): React.ReactElement {
                       data-testid="vuln-only-b"
                     >
                       <td className="p-2 text-xs text-muted-foreground">only B</td>
-                      <td className="p-2 font-mono text-xs">{v.fingerprint.slice(0, 12)}…</td>
+                      <td className="p-2 font-mono text-xs">{v.fingerprint.slice(0, 12)}...</td>
                       <td className="p-2 text-xs">{v.vulnType}</td>
-                      <td className="p-2 text-xs">{v.severity}</td>
-                      <td className="p-2 text-xs">{v.status}</td>
+                      <td className="p-2 text-xs">
+                        <SeverityBadge severity={severityBadgeVariant(v.severity)} />
+                      </td>
+                      <td className="p-2 text-xs">
+                        <StatusBadge label={v.status} variant="default" />
+                      </td>
                       <td className="p-2 text-xs">
                         {v.filePath}:{v.lineStart}
                       </td>
@@ -194,32 +214,28 @@ export default function DiffPage(): React.ReactElement {
                       data-testid="vuln-both"
                     >
                       <td className="p-2 text-xs text-muted-foreground">in both</td>
-                      <td className="p-2 font-mono text-xs">{vb.fingerprint.slice(0, 12)}…</td>
+                      <td className="p-2 font-mono text-xs">{vb.fingerprint.slice(0, 12)}...</td>
                       <td className="p-2 text-xs">{vb.vulnType}</td>
                       <td className="p-2 text-xs">
-                        <span>
-                          {vb.inA.severity} → {vb.inB.severity}
+                        <span className="flex items-center gap-1">
+                          <SeverityBadge severity={severityBadgeVariant(vb.inA.severity)} />
+                          <span className="text-muted-foreground">-</span>
+                          <SeverityBadge severity={severityBadgeVariant(vb.inB.severity)} />
+                          {vb.severityChanged === 'upgraded' && (
+                            <StatusBadge label="UP" variant="destructive" />
+                          )}
+                          {vb.severityChanged === 'downgraded' && (
+                            <StatusBadge label="DOWN" variant="success" />
+                          )}
                         </span>
-                        {vb.severityChanged === 'upgraded' && (
-                          <span className="ml-1 rounded bg-destructive px-1.5 py-0.5 text-[10px] text-destructive-foreground">
-                            UP
-                          </span>
-                        )}
-                        {vb.severityChanged === 'downgraded' && (
-                          <span className="ml-1 rounded bg-green-600 px-1.5 py-0.5 text-[10px] text-white">
-                            DOWN
-                          </span>
-                        )}
                       </td>
                       <td className="p-2 text-xs">
-                        <span>
-                          {vb.inA.status} → {vb.inB.status}
+                        <span className="flex items-center gap-1">
+                          <StatusBadge label={vb.inA.status} variant="default" />
+                          <span className="text-muted-foreground">-</span>
+                          <StatusBadge label={vb.inB.status} variant="default" />
+                          {vb.statusChanged && <StatusBadge label="CHANGED" variant="info" />}
                         </span>
-                        {vb.statusChanged && (
-                          <span className="ml-1 rounded bg-blue-500 px-1.5 py-0.5 text-[10px] text-white">
-                            CHANGED
-                          </span>
-                        )}
                       </td>
                       <td className="p-2 text-xs">{vb.filePath}</td>
                     </tr>
@@ -243,7 +259,7 @@ export default function DiffPage(): React.ReactElement {
             <h2 className="mb-2 text-lg font-semibold">
               Vuln Library Diff
               <span className="ml-2 text-xs text-muted-foreground">
-                new: {diff.vulnLibrary.newInB.length} · fixed: {diff.vulnLibrary.fixedInB.length} ·
+                new: {diff.vulnLibrary.newInB.length} - fixed: {diff.vulnLibrary.fixedInB.length} -
                 worsened: {diff.vulnLibrary.worsened.length}
               </span>
             </h2>
@@ -253,7 +269,7 @@ export default function DiffPage(): React.ReactElement {
                 testid="lib-new"
                 entries={diff.vulnLibrary.newInB}
                 empty="No new library entries"
-                accent="bg-yellow-500 text-white"
+                accent="warning"
                 label="NEW"
               />
               <LibCard
@@ -261,7 +277,7 @@ export default function DiffPage(): React.ReactElement {
                 testid="lib-fixed"
                 entries={diff.vulnLibrary.fixedInB}
                 empty="Nothing fixed yet"
-                accent="bg-green-600 text-white"
+                accent="success"
                 label="FIXED"
               />
               <LibCard
@@ -269,7 +285,7 @@ export default function DiffPage(): React.ReactElement {
                 testid="lib-worsened"
                 entries={diff.vulnLibrary.worsened}
                 empty="No severity upgrades"
-                accent="bg-destructive text-destructive-foreground"
+                accent="destructive"
                 label="WORSENED"
               />
             </div>
@@ -278,7 +294,7 @@ export default function DiffPage(): React.ReactElement {
           {/* Coverage delta */}
           <section>
             <h2 className="mb-2 text-lg font-semibold">Coverage Diff</h2>
-            <div className="rounded-lg border bg-card p-4 text-sm" data-testid="coverage-diff">
+            <Card className="p-4 text-sm" data-testid="coverage-diff">
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <div className="text-xs text-muted-foreground">A</div>
@@ -293,7 +309,7 @@ export default function DiffPage(): React.ReactElement {
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-muted-foreground">Delta (B − A)</div>
+                  <div className="text-xs text-muted-foreground">Delta (B - A)</div>
                   <div
                     className={`text-2xl font-semibold ${
                       diff.coverage.delta === null
@@ -312,7 +328,7 @@ export default function DiffPage(): React.ReactElement {
                   </div>
                 </div>
               </div>
-            </div>
+            </Card>
           </section>
         </>
       ) : null}
@@ -328,7 +344,7 @@ function RunSummaryCard({
   run: ScanDiffRunSummary;
 }): React.ReactElement {
   return (
-    <div className="rounded-lg border bg-card p-4 text-sm" data-testid="run-summary">
+    <Card className="p-4 text-sm" data-testid="run-summary">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="font-mono text-xs">{run.id}</div>
       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -343,11 +359,11 @@ function RunSummaryCard({
         </span>
       </div>
       <div className="mt-2 text-xs text-muted-foreground">
-        Started: {run.startedAt ? new Date(run.startedAt).toLocaleString() : '—'}
+        Started: {run.startedAt ? new Date(run.startedAt).toLocaleString() : '-'}
         <br />
         Vulns: <strong>{run.vulnCount}</strong>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -363,14 +379,14 @@ function LibCard({
   testid: string;
   entries: VulnLibrarySummary[];
   empty: string;
-  accent: string;
+  accent: 'warning' | 'success' | 'destructive';
   label: string;
 }): React.ReactElement {
   return (
-    <div className="rounded-lg border bg-card p-3 text-sm">
+    <Card className="p-3 text-sm">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-sm font-semibold">{title}</h3>
-        <span className={`rounded px-1.5 py-0.5 text-[10px] ${accent}`}>{label}</span>
+        <StatusBadge label={label} variant={accent} />
       </div>
       {entries.length === 0 ? (
         <p className="text-xs text-muted-foreground">{empty}</p>
@@ -384,14 +400,16 @@ function LibCard({
               <span className="truncate">
                 {l.title ?? l.vulnType}{' '}
                 <span className="font-mono text-[10px] text-muted-foreground">
-                  ({l.fingerprint.slice(0, 8)}…)
+                  ({l.fingerprint.slice(0, 8)}...)
                 </span>
               </span>
-              <span className="ml-2 shrink-0 font-mono">{l.severityMax}</span>
+              <span className="ml-2 shrink-0">
+                <SeverityBadge severity={severityBadgeVariant(l.severityMax)} />
+              </span>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </Card>
   );
 }

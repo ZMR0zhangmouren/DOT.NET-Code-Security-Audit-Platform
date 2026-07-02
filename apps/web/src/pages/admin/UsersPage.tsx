@@ -1,6 +1,26 @@
 import { useEffect, useState, type FormEvent } from 'react';
 
+import { PageHeader } from '@/components/PageHeader';
+import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { api, ApiError } from '@/lib/api';
 
 interface User {
@@ -130,22 +150,14 @@ export default function UsersPage(): React.ReactElement {
 
   return (
     <main className="container py-8">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Users</h1>
-          <p className="text-sm text-muted-foreground">
-            Section 5.7 - user management (admin only)
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => void refresh()} data-testid="users-refresh">
-            Refresh
-          </Button>
-          <Button onClick={() => openCreate()} data-testid="users-new">
-            + New User
-          </Button>
-        </div>
-      </header>
+      <PageHeader
+        title="Users"
+        description="Section 5.7 - user management (admin only)"
+        actions={[
+          { label: 'Refresh', variant: 'outline', onClick: () => void refresh() },
+          { label: '+ New User', onClick: () => openCreate() },
+        ]}
+      />
 
       {err && (
         <p className="mb-3 text-sm text-destructive" role="alert">
@@ -153,173 +165,198 @@ export default function UsersPage(): React.ReactElement {
         </p>
       )}
 
-      {mode && (
-        <form
-          onSubmit={(e) => {
-            void onSubmit(e);
-          }}
-          className="mb-4 rounded-lg border bg-card p-4"
-        >
-          <h2 className="mb-3 text-lg font-semibold">
-            {mode.kind === 'create' ? 'New User' : `Edit: ${mode.user.username}`}
-          </h2>
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">Username *</span>
-              <input
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                minLength={3}
-                maxLength={64}
-                disabled={mode.kind === 'edit'}
-                className="rounded-md border border-input bg-background px-3 py-2 disabled:opacity-60"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">Email *</span>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="rounded-md border border-input bg-background px-3 py-2"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">
-                Password {mode.kind === 'edit' && '(leave blank to keep current)'}
-              </span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                {...(mode.kind === 'create' ? { required: true, minLength: 8 } : { minLength: 8 })}
-                placeholder={mode.kind === 'edit' ? 'Reset to new value' : ''}
-                className="rounded-md border border-input bg-background px-3 py-2"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">Role *</span>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as User['role'])}
-                className="rounded-md border border-input bg-background px-3 py-2"
+      <Dialog
+        open={mode !== null}
+        onOpenChange={(open) => {
+          if (!open) close();
+        }}
+      >
+        <DialogContent className="sm:max-w-lg" data-testid="user-dialog">
+          <DialogHeader>
+            <DialogTitle>
+              {mode?.kind === 'create'
+                ? 'New User'
+                : `Edit: ${mode?.kind === 'edit' ? mode.user.username : ''}`}
+            </DialogTitle>
+            <DialogDescription>
+              {mode?.kind === 'create'
+                ? 'Fill in the details to create a new user.'
+                : 'Update user details. Leave password blank to keep current.'}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              void onSubmit(e);
+            }}
+            data-testid="user-form"
+          >
+            <div className="grid gap-4 md:grid-cols-2 py-4">
+              <div className="flex flex-col gap-1 text-sm">
+                <span className="text-muted-foreground">Username *</span>
+                <Input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  minLength={3}
+                  maxLength={64}
+                  disabled={mode?.kind === 'edit'}
+                  data-testid="user-username"
+                />
+              </div>
+              <div className="flex flex-col gap-1 text-sm">
+                <span className="text-muted-foreground">Email *</span>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  data-testid="user-email"
+                />
+              </div>
+              <div className="flex flex-col gap-1 text-sm">
+                <span className="text-muted-foreground">
+                  Password {mode?.kind === 'edit' && '(leave blank to keep current)'}
+                </span>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  {...(mode?.kind === 'create'
+                    ? { required: true, minLength: 8 }
+                    : { minLength: 8 })}
+                  placeholder={mode?.kind === 'edit' ? 'Reset to new value' : ''}
+                  data-testid="user-password"
+                />
+              </div>
+              <div className="flex flex-col gap-1 text-sm">
+                <span className="text-muted-foreground">Role *</span>
+                <Select value={role} onValueChange={(v) => setRole(v as User['role'])}>
+                  <SelectTrigger data-testid="user-role">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">admin</SelectItem>
+                    <SelectItem value="auditor">auditor</SelectItem>
+                    <SelectItem value="developer">developer</SelectItem>
+                    <SelectItem value="viewer">viewer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1 text-sm md:col-span-2">
+                <span className="text-muted-foreground">Display name</span>
+                <Input
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  data-testid="user-displayname"
+                />
+              </div>
+            </div>
+            {err && (
+              <p className="mb-3 text-sm text-destructive" role="alert">
+                {err}
+              </p>
+            )}
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="ghost" disabled={saving}>
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button
+                type="submit"
+                disabled={saving}
+                data-testid={mode?.kind === 'create' ? 'users-create' : 'users-save'}
               >
-                <option value="admin">admin</option>
-                <option value="auditor">auditor</option>
-                <option value="developer">developer</option>
-                <option value="viewer">viewer</option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm md:col-span-2">
-              <span className="text-muted-foreground">Display name</span>
-              <input
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="rounded-md border border-input bg-background px-3 py-2"
-              />
-            </label>
-          </div>
-          <div className="mt-3 flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={close} disabled={saving}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={saving}
-              data-testid={mode.kind === 'create' ? 'users-create' : 'users-save'}
-            >
-              {saving ? 'Saving...' : mode.kind === 'create' ? 'Create' : 'Save'}
-            </Button>
-          </div>
-        </form>
-      )}
+                {saving ? 'Saving...' : mode?.kind === 'create' ? 'Create' : 'Save'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading...</p>
       ) : users.length === 0 ? (
-        <p
-          className="rounded-lg border bg-card p-6 text-sm text-muted-foreground"
-          data-testid="users-empty"
-        >
-          No users yet.
-        </p>
+        <Card className="p-6" data-testid="users-empty">
+          <p className="text-sm text-muted-foreground">No users yet.</p>
+        </Card>
       ) : (
-        <table className="w-full rounded-lg border bg-card text-sm" data-testid="users-table">
-          <thead>
-            <tr className="border-b bg-muted text-left">
-              <th className="p-2">Username</th>
-              <th className="p-2">Email</th>
-              <th className="p-2">Role</th>
-              <th className="p-2">Active</th>
-              <th className="p-2">Created</th>
-              <th className="p-2">Last login</th>
-              <th className="p-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id} className="border-b" data-testid="user-row">
-                <td className="p-2 font-mono">{u.username}</td>
-                <td className="p-2">{u.email}</td>
-                <td className="p-2">
-                  <select
-                    value={u.role}
-                    onChange={(e) => {
-                      void changeRole(u, e.target.value as User['role']);
-                    }}
-                    className="rounded border border-input bg-background px-2 py-1 text-xs"
-                  >
-                    <option value="admin">admin</option>
-                    <option value="auditor">auditor</option>
-                    <option value="developer">developer</option>
-                    <option value="viewer">viewer</option>
-                  </select>
-                </td>
-                <td className="p-2">
-                  <span
-                    className={
-                      u.isActive
-                        ? 'rounded bg-primary px-2 py-0.5 text-xs text-primary-foreground'
-                        : 'rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground'
-                    }
-                  >
-                    {u.isActive ? 'yes' : 'no'}
-                  </span>
-                </td>
-                <td className="p-2 text-xs text-muted-foreground">
-                  {new Date(u.createdAt).toLocaleDateString()}
-                </td>
-                <td className="p-2 text-xs text-muted-foreground">
-                  {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : '-'}
-                </td>
-                <td className="p-2 space-x-1">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => {
-                      openEdit(u);
-                    }}
-                    data-testid="user-edit"
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={u.isActive ? 'outline' : 'default'}
-                    onClick={() => {
-                      void toggleActive(u);
-                    }}
-                    data-testid="user-toggle"
-                  >
-                    {u.isActive ? 'Deactivate' : 'Activate'}
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <Card>
+          <CardContent className="p-0">
+            <table className="w-full text-sm" data-testid="users-table">
+              <thead>
+                <tr className="border-b bg-muted text-left">
+                  <th className="p-2">Username</th>
+                  <th className="p-2">Email</th>
+                  <th className="p-2">Role</th>
+                  <th className="p-2">Active</th>
+                  <th className="p-2">Created</th>
+                  <th className="p-2">Last login</th>
+                  <th className="p-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.id} className="border-b" data-testid="user-row">
+                    <td className="p-2 font-mono">{u.username}</td>
+                    <td className="p-2">{u.email}</td>
+                    <td className="p-2">
+                      <div className="flex items-center gap-2">
+                        <StatusBadge label={u.role} variant="info" />
+                        <select
+                          value={u.role}
+                          onChange={(e) => {
+                            void changeRole(u, e.target.value as User['role']);
+                          }}
+                          className="rounded border border-input bg-background px-2 py-1 text-xs"
+                        >
+                          <option value="admin">admin</option>
+                          <option value="auditor">auditor</option>
+                          <option value="developer">developer</option>
+                          <option value="viewer">viewer</option>
+                        </select>
+                      </div>
+                    </td>
+                    <td className="p-2">
+                      <StatusBadge
+                        label={u.isActive ? 'Active' : 'Inactive'}
+                        variant={u.isActive ? 'success' : 'default'}
+                      />
+                    </td>
+                    <td className="p-2 text-xs text-muted-foreground">
+                      {new Date(u.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="p-2 text-xs text-muted-foreground">
+                      {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : '-'}
+                    </td>
+                    <td className="p-2 space-x-1">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          openEdit(u);
+                        }}
+                        data-testid="user-edit"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={u.isActive ? 'outline' : 'default'}
+                        onClick={() => {
+                          void toggleActive(u);
+                        }}
+                        data-testid="user-toggle"
+                      >
+                        {u.isActive ? 'Deactivate' : 'Activate'}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
       )}
     </main>
   );

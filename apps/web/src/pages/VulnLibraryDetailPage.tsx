@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
+import { PageHeader } from '@/components/PageHeader';
+import { SeverityBadge } from '@/components/SeverityBadge';
+import { StatusBadge } from '@/components/StatusBadge';
+import { Card } from '@/components/ui/card';
 import { api } from '@/lib/api';
 
 interface LibraryTimelineEntry {
@@ -39,6 +43,22 @@ interface LibraryDetail {
 
 const LIBRARY_STATUSES = ['open', 'fixing', 'fixed', 'wontfix', 'ignored', 'suppressed'] as const;
 type LibraryStatus = (typeof LIBRARY_STATUSES)[number];
+
+const SEVERITY_MAP: Record<string, 'critical' | 'high' | 'medium' | 'low'> = {
+  C: 'critical',
+  H: 'high',
+  M: 'medium',
+  L: 'low',
+};
+
+const STATUS_VARIANT_MAP: Record<string, 'destructive' | 'warning' | 'success' | 'default'> = {
+  open: 'destructive',
+  fixing: 'warning',
+  fixed: 'success',
+  wontfix: 'default',
+  ignored: 'default',
+  suppressed: 'default',
+};
 
 /**
  * §5.5 /projects/:id/vuln-library/:libId —— 漏洞库详情
@@ -91,73 +111,29 @@ export default function VulnLibraryDetailPage(): React.ReactElement {
 
   return (
     <main className="container py-8">
-      <Link
-        to={`/projects/${id ?? ''}/vuln-library`}
-        className="text-sm text-muted-foreground underline"
-      >
-        ← Vuln Library
-      </Link>
-
-      {loading && <p className="mt-4 text-sm text-muted-foreground">Loading...</p>}
+      {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
 
       {err && (
-        <p className="mt-4 text-sm text-destructive" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {err}
         </p>
       )}
 
       {entry && (
         <>
-          <header className="mt-3 mb-4 flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold">
-                {entry.title ?? `${entry.vulnType} vulnerability`}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {entry.vulnType} · ID <code className="font-mono">{entry.id}</code>
-              </p>
-              {entry.tags.length > 0 && (
-                <p className="mt-1 text-xs text-muted-foreground">Tags: {entry.tags.join(', ')}</p>
-              )}
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`rounded px-2 py-0.5 text-xs ${severityClass(entry.severityMax)}`}
-                  data-testid="detail-severity"
-                >
-                  {entry.severityMax}
-                </span>
-                <span
-                  className={`rounded px-2 py-0.5 text-xs ${statusClass(entry.status)}`}
-                  data-testid="detail-status"
-                >
-                  {entry.status}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <label className="text-xs text-muted-foreground">Change status:</label>
-                <select
-                  value={entry.status}
-                  disabled={saving}
-                  onChange={(e) => {
-                    void setStatus(e.target.value as LibraryStatus);
-                  }}
-                  className="rounded border border-input bg-background px-2 py-1 text-xs"
-                  data-testid="detail-status-select"
-                >
-                  {LIBRARY_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </header>
+          <PageHeader
+            title={entry.title ?? `${entry.vulnType} vulnerability`}
+            description={`${entry.vulnType} · ID ${entry.id}`}
+            breadcrumbs={[{ label: 'Vuln Library', to: `/projects/${id ?? ''}/vuln-library` }]}
+            badge={
+              entry.tags.length > 0 ? (
+                <span className="text-xs text-muted-foreground">Tags: {entry.tags.join(', ')}</span>
+              ) : undefined
+            }
+          />
 
           <section className="mb-6 grid gap-3 md:grid-cols-2">
-            <div className="rounded-lg border bg-card p-4">
+            <Card className="p-4">
               <h3 className="mb-2 text-sm font-semibold">Metadata</h3>
               <dl className="grid grid-cols-[120px_1fr] gap-y-1 text-xs">
                 <dt className="text-muted-foreground">First seen</dt>
@@ -183,58 +159,79 @@ export default function VulnLibraryDetailPage(): React.ReactElement {
                   </>
                 )}
               </dl>
-            </div>
+            </Card>
 
             {entry.description && (
-              <div className="rounded-lg border bg-card p-4">
+              <Card className="p-4">
                 <h3 className="mb-2 text-sm font-semibold">Description</h3>
                 <p className="whitespace-pre-wrap text-xs">{entry.description}</p>
-              </div>
+              </Card>
             )}
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-semibold">
-              Timeline ({entry.timeline.length} occurrence
-              {entry.timeline.length === 1 ? '' : 's'})
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">
+                Timeline ({entry.timeline.length} occurrence
+                {entry.timeline.length === 1 ? '' : 's'})
+              </h2>
+              <div className="flex items-center gap-2">
+                <SeverityBadge
+                  severity={SEVERITY_MAP[entry.severityMax] ?? 'info'}
+                  data-testid="detail-severity"
+                />
+                <StatusBadge
+                  label={entry.status}
+                  variant={STATUS_VARIANT_MAP[entry.status]}
+                  data-testid="detail-status"
+                />
+                <label className="text-xs text-muted-foreground ml-2">Change status:</label>
+                <select
+                  value={entry.status}
+                  disabled={saving}
+                  onChange={(e) => {
+                    void setStatus(e.target.value as LibraryStatus);
+                  }}
+                  className="rounded border border-input bg-background px-2 py-1 text-xs"
+                  data-testid="detail-status-select"
+                >
+                  {LIBRARY_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             {entry.timeline.length === 0 ? (
-              <p className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">
-                No vulnerability instances recorded.
-              </p>
+              <Card className="p-6">
+                <p className="text-sm text-muted-foreground">
+                  No vulnerability instances recorded.
+                </p>
+              </Card>
             ) : (
               <ul className="space-y-2" data-testid="timeline">
                 {entry.timeline.map((t) => (
-                  <li
-                    key={t.vulnerabilityId}
-                    className="rounded-lg border bg-card p-3"
-                    data-testid="timeline-row"
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <div>
-                        <span className="font-mono">{t.filePath}</span>
-                        <span className="text-muted-foreground">
-                          {' '}
-                          :{t.lineStart}-{t.lineEnd}
-                        </span>
+                  <li key={t.vulnerabilityId} data-testid="timeline-row">
+                    <Card className="p-3">
+                      <div className="flex items-center justify-between text-xs">
+                        <div>
+                          <span className="font-mono">{t.filePath}</span>
+                          <span className="text-muted-foreground">
+                            {' '}
+                            :{t.lineStart}-{t.lineEnd}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <SeverityBadge severity={SEVERITY_MAP[t.severity] ?? 'info'} />
+                          <StatusBadge label={t.status} variant={STATUS_VARIANT_MAP[t.status]} />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`rounded px-1.5 py-0.5 text-[10px] ${severityClass(t.severity)}`}
-                        >
-                          {t.severity}
-                        </span>
-                        <span
-                          className={`rounded px-1.5 py-0.5 text-[10px] ${statusClass(t.status)}`}
-                        >
-                          {t.status}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="mt-1 text-[10px] text-muted-foreground">
-                      Created {new Date(t.createdAt).toLocaleString()} · scan{' '}
-                      <code className="font-mono">{t.scanRunId.slice(-12)}</code>
-                    </p>
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        Created {new Date(t.createdAt).toLocaleString()} · scan{' '}
+                        <code className="font-mono">{t.scanRunId.slice(-12)}</code>
+                      </p>
+                    </Card>
                   </li>
                 ))}
               </ul>
@@ -244,34 +241,4 @@ export default function VulnLibraryDetailPage(): React.ReactElement {
       )}
     </main>
   );
-}
-
-function severityClass(s: string): string {
-  switch (s) {
-    case 'C':
-      return 'bg-destructive text-destructive-foreground';
-    case 'H':
-      return 'bg-orange-500 text-white';
-    case 'M':
-      return 'bg-yellow-500 text-white';
-    default:
-      return 'bg-muted text-muted-foreground';
-  }
-}
-
-function statusClass(s: string): string {
-  switch (s) {
-    case 'open':
-      return 'bg-destructive text-destructive-foreground';
-    case 'fixing':
-      return 'bg-yellow-500 text-white';
-    case 'fixed':
-      return 'bg-green-600 text-white';
-    case 'wontfix':
-    case 'ignored':
-    case 'suppressed':
-      return 'bg-muted text-muted-foreground';
-    default:
-      return 'bg-muted text-muted-foreground';
-  }
 }

@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
+import { PageHeader } from '@/components/PageHeader';
+import { StatusBadge } from '@/components/StatusBadge';
+import { Card } from '@/components/ui/card';
 import { api, ApiError } from '@/lib/api';
 
 type TraceRole = 'system' | 'user' | 'assistant' | 'tool';
@@ -30,15 +33,15 @@ interface AgentTraceSummary {
   model: string | null;
 }
 
-const roleClass: Record<TraceRole, string> = {
-  system: 'bg-muted text-muted-foreground',
-  user: 'bg-blue-500 text-white',
-  assistant: 'bg-green-600 text-white',
-  tool: 'bg-yellow-500 text-white',
+const roleBadgeVariant: Record<TraceRole, 'default' | 'info' | 'success' | 'warning'> = {
+  system: 'default',
+  user: 'info',
+  assistant: 'success',
+  tool: 'warning',
 };
 
 /**
- * Phase 3 §1.2/2.7 —— /projects/:id/scans/:runId/trace
+ * Phase 3 1.2/2.7 —— /projects/:id/scans/:runId/trace
  *
  * 顶部 summary:scan_id / 总 trace 数 / token 用量 / 主 model
  * 时间线:每个 trace 一行卡片
@@ -83,17 +86,11 @@ export default function TracePage(): React.ReactElement {
 
   return (
     <main className="container py-8">
-      <Link
-        to={`/projects/${id ?? ''}/scans/${runId ?? ''}`}
-        className="text-sm text-muted-foreground underline"
-      >
-        ← Back to scan
-      </Link>
-
-      <header className="mt-3 mb-6">
-        <h1 className="text-3xl font-bold">Agent Trace</h1>
-        <p className="text-sm text-muted-foreground">Phase 3 §1.2/2.7 — {runId}</p>
-      </header>
+      <PageHeader
+        title="Agent Trace"
+        description={`Phase 3 1.2/2.7 — ${runId}`}
+        breadcrumbs={[{ label: 'Back to scan', to: `/projects/${id ?? ''}/scans/${runId ?? ''}` }]}
+      />
 
       {error && (
         <p className="mb-3 text-sm text-destructive" role="alert" data-testid="trace-error">
@@ -102,15 +99,14 @@ export default function TracePage(): React.ReactElement {
       )}
 
       {summary && (
-        <div
-          className="mb-6 grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-4"
-          data-testid="trace-summary"
-        >
-          <SummaryField label="scan_run_id" value={summary.scanRunId} mono />
-          <SummaryField label="total traces" value={summary.total.toLocaleString()} />
-          <SummaryField label="total tokens" value={totalTokensDisplay} />
-          <SummaryField label="model" value={summary.model ?? '(unknown)'} />
-        </div>
+        <Card className="mb-6 glass-card" data-testid="trace-summary">
+          <div className="grid gap-3 p-4 sm:grid-cols-4">
+            <SummaryField label="scan_run_id" value={summary.scanRunId} mono />
+            <SummaryField label="total traces" value={summary.total.toLocaleString()} />
+            <SummaryField label="total tokens" value={totalTokensDisplay} />
+            <SummaryField label="model" value={summary.model ?? '(unknown)'} />
+          </div>
+        </Card>
       )}
 
       {items === null && error === null && (
@@ -129,53 +125,53 @@ export default function TracePage(): React.ReactElement {
         {items?.map((t) => (
           <li
             key={t.id}
-            className="rounded-lg border bg-card p-4"
             data-testid="trace-item"
             data-trace-index={t.traceIndex}
             data-trace-role={t.role}
           >
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="font-mono text-xs text-muted-foreground">#{t.traceIndex}</span>
-              <span
-                className={`rounded px-2 py-0.5 text-xs ${roleClass[t.role]}`}
-                data-testid="trace-role"
-              >
-                {t.role}
-              </span>
-              {t.toolCallId && (
-                <span className="rounded bg-muted px-2 py-0.5 text-xs">
-                  tool_call_id: <span className="font-mono">{t.toolCallId}</span>
-                </span>
-              )}
-              {t.finishReason && (
-                <span className="rounded bg-muted px-2 py-0.5 text-xs">
-                  finish: {t.finishReason}
-                </span>
-              )}
-              <span className="ml-auto text-xs text-muted-foreground">
-                {new Date(t.createdAt).toISOString()}
-              </span>
-            </div>
-
-            {t.content !== null && t.content !== '' && <ContentBlock content={t.content} />}
-
-            {t.toolCalls && t.toolCalls.length > 0 && <ToolCallsBlock toolCalls={t.toolCalls} />}
-
-            {(t.promptTokens !== null ||
-              t.completionTokens !== null ||
-              t.totalTokens !== null ||
-              t.model) && (
-              <div className="mt-2 flex flex-wrap gap-3 border-t pt-2 text-xs text-muted-foreground">
-                {t.model && (
-                  <span>
-                    model: <span className="font-mono">{t.model}</span>
+            <Card className="p-4">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className="font-mono text-xs text-muted-foreground">#{t.traceIndex}</span>
+                <StatusBadge
+                  label={t.role}
+                  variant={roleBadgeVariant[t.role]}
+                  data-testid="trace-role"
+                />
+                {t.toolCallId && (
+                  <span className="rounded bg-muted px-2 py-0.5 text-xs">
+                    tool_call_id: <span className="font-mono">{t.toolCallId}</span>
                   </span>
                 )}
-                {t.promptTokens !== null && <span>prompt: {t.promptTokens}</span>}
-                {t.completionTokens !== null && <span>completion: {t.completionTokens}</span>}
-                {t.totalTokens !== null && <span>total: {t.totalTokens}</span>}
+                {t.finishReason && (
+                  <span className="rounded bg-muted px-2 py-0.5 text-xs">
+                    finish: {t.finishReason}
+                  </span>
+                )}
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {new Date(t.createdAt).toISOString()}
+                </span>
               </div>
-            )}
+
+              {t.content !== null && t.content !== '' && <ContentBlock content={t.content} />}
+
+              {t.toolCalls && t.toolCalls.length > 0 && <ToolCallsBlock toolCalls={t.toolCalls} />}
+
+              {(t.promptTokens !== null ||
+                t.completionTokens !== null ||
+                t.totalTokens !== null ||
+                t.model) && (
+                <div className="mt-2 flex flex-wrap gap-3 border-t pt-2 text-xs text-muted-foreground">
+                  {t.model && (
+                    <span>
+                      model: <span className="font-mono">{t.model}</span>
+                    </span>
+                  )}
+                  {t.promptTokens !== null && <span>prompt: {t.promptTokens}</span>}
+                  {t.completionTokens !== null && <span>completion: {t.completionTokens}</span>}
+                  {t.totalTokens !== null && <span>total: {t.totalTokens}</span>}
+                </div>
+              )}
+            </Card>
           </li>
         ))}
       </ol>
@@ -207,14 +203,14 @@ function ContentBlock({ content }: { content: string }): React.ReactElement {
     <div className="mt-1">
       <button
         type="button"
-        className="text-xs text-muted-foreground underline"
+        className="text-xs text-muted-foreground underline hover:text-foreground"
         onClick={() => setOpen((v) => !v)}
         data-testid="trace-content-toggle"
       >
-        {open ? '▾ hide content' : '▸ show content'}
+        {open ? 'hide content' : 'show content'}
       </button>
       <pre
-        className={`mt-1 overflow-auto whitespace-pre-wrap rounded bg-muted p-2 text-xs ${
+        className={`mt-1 overflow-auto whitespace-pre-wrap rounded bg-muted p-2 text-xs transition-all ${
           open ? 'max-h-96' : 'max-h-16'
         }`}
         data-testid="trace-content"
@@ -250,12 +246,14 @@ function ToolCallsBlock({
         return (
           <div key={idx} className="rounded border bg-muted/40 p-2" data-testid="trace-tool-call">
             <div className="text-xs">
-              <span className="rounded bg-primary px-2 py-0.5 text-primary-foreground">{name}</span>
+              <span className="rounded bg-primary px-2 py-0.5 text-primary-foreground font-medium">
+                {name}
+              </span>
               {typeof tc['id'] === 'string' && (
                 <span className="ml-2 font-mono text-muted-foreground">{tc['id']}</span>
               )}
             </div>
-            <pre className="mt-1 overflow-auto whitespace-pre-wrap rounded bg-background p-2 text-xs">
+            <pre className="mt-1 overflow-auto whitespace-pre-wrap rounded bg-background p-2 text-xs leading-relaxed">
               {JSON.stringify(parsedArgs, null, 2)}
             </pre>
           </div>

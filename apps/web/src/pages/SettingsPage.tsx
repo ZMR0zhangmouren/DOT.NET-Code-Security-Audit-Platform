@@ -1,7 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
+import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { api, ApiError } from '@/lib/api';
 
 interface ChangePasswordResponse {
@@ -60,7 +64,7 @@ export default function SettingsPage(): React.ReactElement {
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      alert('密码已修改,请使用新密码重新登录。');
+      toast.success('密码已修改，请使用新密码重新登录。');
       // 改密后强制重新登录:清 token + 跳 /login
       localStorage.removeItem('access_token');
       localStorage.removeItem('user');
@@ -74,12 +78,9 @@ export default function SettingsPage(): React.ReactElement {
 
   return (
     <main className="container max-w-xl py-8">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold">个人中心</h1>
-        <p className="text-sm text-muted-foreground">§6.2 改自己密码(登录用户)</p>
-      </header>
+      <PageHeader title="个人中心" description="§6.2 改自己密码(登录用户)" />
 
-      <section className="rounded-lg border bg-card p-6 shadow-sm">
+      <Card className="p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold">修改密码</h2>
         <form
           onSubmit={(e) => {
@@ -90,39 +91,36 @@ export default function SettingsPage(): React.ReactElement {
         >
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-muted-foreground">旧密码 *</span>
-            <input
+            <Input
               type="password"
               value={oldPassword}
               onChange={(e) => setOldPassword(e.target.value)}
               required
               autoComplete="current-password"
-              className="rounded-md border border-input bg-background px-3 py-2"
               data-testid="cp-old"
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-muted-foreground">新密码 * (≥8 字符,含字母+数字)</span>
-            <input
+            <Input
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
               minLength={8}
               autoComplete="new-password"
-              className="rounded-md border border-input bg-background px-3 py-2"
               data-testid="cp-new"
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-muted-foreground">确认新密码 *</span>
-            <input
+            <Input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               minLength={8}
               autoComplete="new-password"
-              className="rounded-md border border-input bg-background px-3 py-2"
               data-testid="cp-confirm"
             />
           </label>
@@ -140,7 +138,7 @@ export default function SettingsPage(): React.ReactElement {
 
           <div className="mt-2 flex justify-end gap-2">
             <Link to="/">
-              <Button type="button" variant="ghost" disabled={saving}>
+              <Button type="button" variant="outline" disabled={saving}>
                 返回
               </Button>
             </Link>
@@ -149,7 +147,7 @@ export default function SettingsPage(): React.ReactElement {
             </Button>
           </div>
         </form>
-      </section>
+      </Card>
 
       <p className="mt-4 text-xs text-muted-foreground">
         默认账号首次登录后必须改密码(§6.2)。忘记密码请联系 admin 重置。
