@@ -28,6 +28,7 @@ Thumbs.db
 # Claude 本地配置
 CLAUDE.local.md
 .claude/settings.local.json
+.claude/skills/
 
 # pnpm
 .pnpm-store/
