@@ -1,55 +1,35 @@
 import { Loader2, Shield } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-
-interface LoginResponse {
-  accessToken: string;
-  user: {
-    id: string;
-    username: string;
-    email: string;
-    displayName: string | null;
-    role: 'admin' | 'auditor' | 'developer' | 'viewer';
-  };
-}
+import { useAuth } from '@/hooks/useAuth';
 
 /**
  * §9 路由 /login —— 靛蓝渐变背景 + 毛玻璃登录卡片
  *
  * 默认账号:`admin` / `admin123`(pnpm --filter @platform/api seed 写入)
  * §6.2 首次登录后改密码。
+ *
+ * 安全:使用 useAuth().login() → accessToken 存内存 + refreshToken 走 HttpOnly Cookie
  */
 export default function LoginPage(): React.ReactElement {
+  const { login: doLogin } = useAuth();
   const [usernameOrEmail, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin123');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   async function onSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
     setLoading(true);
     setErr(null);
     try {
-      const r = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ usernameOrEmail, password }),
-      });
-      if (!r.ok) {
-        const j = (await r.json().catch(() => ({}))) as { message?: string };
-        throw new Error(j.message ?? `HTTP ${r.status}`);
-      }
-      const data = (await r.json()) as LoginResponse;
-      localStorage.setItem('access_token', data.accessToken);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      toast.success(`欢迎，${data.user.username}`);
-      navigate('/');
+      await doLogin(usernameOrEmail, password);
+      toast.success(`欢迎，${usernameOrEmail}`);
     } catch (e) {
       const msg = (e as Error).message;
       setErr(msg);

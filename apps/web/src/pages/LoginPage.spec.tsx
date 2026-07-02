@@ -5,9 +5,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import LoginPage from './LoginPage';
 
+// Mock useAuth
+const mockLogin = vi.fn();
+
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: null,
+    loading: false,
+    login: mockLogin,
+    logout: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
+
 describe('LoginPage', () => {
   beforeEach(() => {
-    localStorage.clear();
     vi.restoreAllMocks();
   });
 
@@ -15,16 +27,12 @@ describe('LoginPage', () => {
     vi.restoreAllMocks();
   });
 
-  function renderLogin(): ReturnType<typeof render> {
-    return render(
+  it('渲染登录表单', () => {
+    render(
       <MemoryRouter>
         <LoginPage />
       </MemoryRouter>,
     );
-  }
-
-  it('渲染登录表单', () => {
-    renderLogin();
     expect(screen.getByText('CodeSec Audit')).toBeInTheDocument();
     expect(screen.getByLabelText('用户名 / 邮箱')).toBeInTheDocument();
     expect(screen.getByLabelText('密码')).toBeInTheDocument();
@@ -32,36 +40,36 @@ describe('LoginPage', () => {
   });
 
   it('默认填充凭据', () => {
-    renderLogin();
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
+    );
     expect(screen.getByLabelText('用户名 / 邮箱')).toHaveValue('admin');
     expect(screen.getByLabelText('密码')).toHaveValue('admin123');
   });
 
-  it('提交成功存储 token', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          accessToken: 'jwt.test',
-          user: { id: 'u1', username: 'admin', email: 'a@x.com', displayName: null, role: 'admin' },
-        }),
-        { status: 200 },
-      ),
+  it('提交时调用 useAuth.login', async () => {
+    mockLogin.mockResolvedValueOnce(undefined);
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
     );
-
-    renderLogin();
     await userEvent.click(screen.getAllByTestId('login-submit')[0]!);
 
     await waitFor(() => {
-      expect(localStorage.getItem('access_token')).toBe('jwt.test');
+      expect(mockLogin).toHaveBeenCalledWith('admin', 'admin123');
     });
   });
 
-  it('提交失败显示错误', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(JSON.stringify({ message: 'Invalid credentials' }), { status: 401 }),
+  it('登录失败显示错误', async () => {
+    mockLogin.mockRejectedValueOnce(new Error('Invalid credentials'));
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
     );
-
-    renderLogin();
     await userEvent.click(screen.getAllByTestId('login-submit')[0]!);
 
     await waitFor(() => {
@@ -69,15 +77,17 @@ describe('LoginPage', () => {
     });
   });
 
-  it('加载中按钮禁用', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(() => new Promise(() => {}));
-
-    renderLogin();
+  it('提交中按钮禁用', async () => {
+    mockLogin.mockImplementationOnce(() => new Promise(() => {}));
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
+    );
     await userEvent.click(screen.getAllByTestId('login-submit')[0]!);
 
     await waitFor(() => {
-      const btns = screen.getAllByTestId('login-submit');
-      expect(btns[0]).toBeDisabled();
+      expect(screen.getAllByTestId('login-submit')[0]!).toBeDisabled();
     });
   });
 });

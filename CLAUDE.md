@@ -137,7 +137,7 @@ pnpm --filter @platform/api seed
 - password: `admin123`
 - role: admin
 
-§6.2 首次登录后改密码已落地(`7e3ac05`):POST `/api/auth/change-password` + `/me` 页面 + 密码强度校验(≥8 字符 + 1 数字 + 1 字母)。POST `/api/auth/login` → 返回 JWT(15min,payload 含 `sub` + `role`)→ 前端存 localStorage;真 JWT 解码 + RolesGuard 已落地(`2f83a11`)。
+§6.2 首次登录后改密码已落地(`7e3ac05`):POST `/api/auth/change-password` + `/me` 页面 + 密码强度校验(≥8 字符 + 1 数字 + 1 字母)。POST `/api/auth/login` → 返回 JWT(15min,payload 含 `sub` + `role`)→ 前端存内存 + refresh token 走 HttpOnly Cookie(自动携带 + 静默刷新 + 轮换 + 吊销);真 JWT 解码 + RolesGuard 已落地(`2f83a11`)。
 
 ## 已落地功能(2026-06-29)
 
@@ -313,7 +313,7 @@ pnpm --filter @platform/api seed
 | **§11 Q11 Phase 4 Docker 化部署** | 1-2 天 | 部署简化 | ✅ `9b495fe`(`apps/api/Dockerfile` 多阶段 build + alpine musl better-sqlite3 编译 + `apps/web/Dockerfile` nginx serve + `docker-compose.yml` 3 服务 + `docker-entrypoint.sh` 自动迁移/seed + `docs/DOCKER.md` 使用指南);**api NestJS 启动期 pre-existing `import type` DI bug 已修(`7bf49eb` + `4dd7523`),Docker 化实际可用** |
 | **Phase 2 e2e**(api 端 supertest + web 端 RTL) | 2-3 天 | api 覆盖率破 70% | 待办(已有 80.18%,Phase 2 e2e 可推到 95%+) |
 | **Phase 3 漏洞趋势图**(VulnLibrary 按时间聚合) | 1-2 天 | 安全可视化 | 待办 |
-| refresh-token + 旋转/吊销 + HttpOnly Cookie(替换 localStorage) | 1 天 | §6.2 真闭环 | 待办 |
+| ~~refresh-token + 旋转/吊销 + HttpOnly Cookie(替换 localStorage)~~ | 1 天 | §6.2 真闭环 | ✅ 已完成(后端已实现,2026-07-02 前端 LoginPage 接 useAuth) |
 | Skill 升级自动跑一遍重扫(CI hook) | 2-3 小时 | §11 Q7 自动兑现 | 待办 |
 | Phase 5 repo-wide `import type Service` 扫描 | 30 分钟 | 一劳永逸 | ✅ `7bf49eb` + `4dd7523`(roles.guard / projects.controller + scan-queue / scan-processor)|
 | pnpm-workspace.yaml `onlyBuiltDependencies` | 5 分钟 | CI 友好 | ✅ `fa71693`(修 better-sqlite3 等 native deps install 失败) |
@@ -343,7 +343,7 @@ pnpm --filter @platform/api seed
 
 - **api 覆盖率 57% 未达 70%**:`36aee78` 阈值注释保留 —— 需 Phase 2 接 supertest 跑 e2e 才能破;目前 service 层覆盖 ~70%,controller / guard / middleware / gateway 层未充分测
 - **Docker 化待评估(§11 Q11 锁定 "无 Docker",打破需决策)**:BullMQ + Redis 部分打破"无 Docker"前提(本机需 docker run redis);Phase 4 是否回退 `better-queue` 待定
-- **refresh-token 黑名单未实现(JWT 不可吊销)**:`2f83a11` 真 JWT 解码上线后,access token 15min 过期,无 refresh + 旋转 + 黑名单;MVP 阶段接受(等 Phase 2)
+- ~~**refresh-token 黑名单未实现**~~:✅ 已落地 —— `refresh_tokens` 表 + SHA-256 hash + HttpOnly Cookie + 轮换(旧行 revokedAt) + 登出批量吊销
 - **web `pages/` + `components/` 未充分测**:仅 `hooks/` + `lib/` 100% 覆盖;`pages/`(12 页面) + `components/` 仅 `App.spec.tsx` 1 测试;Phase 2 接 React Testing Library
 - **`apps/api/storage/scan-runs/<id>/` 落盘目录结构当前没真 skill 产物**(`route_mapping/` / `framework_audit/` 来自 fixture 测试;真 scan 跑完只有 `quality/scan_summary.json`);Phase 2 skill 真产出后自动补齐
 - **§6.2 鉴权 MVP 阶段只发了 15min access token**;**refresh token + 旋转/吊销 + HttpOnly Cookie** 仍留 Phase 2;前端用 `localStorage` 存 accessToken,没接 refresh
